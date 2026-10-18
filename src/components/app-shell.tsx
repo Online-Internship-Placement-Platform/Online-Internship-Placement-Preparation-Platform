@@ -7,7 +7,13 @@ import type { Role } from "@/lib/placement-data";
 import { AUTH_STORAGE_KEY } from "@/lib/auth";
 
 const navItems: Record<Role, { label: string; href: string }[]> = {
-  student: [{ label: "Overview", href: "/student/dashboard" }, { label: "Internships", href: "/student/internships" }, { label: "Applications", href: "/student/applications" }, { label: "Assessments", href: "/student/assessments" }],
+  student: [
+  { label: "Overview", href: "/student/dashboard" },
+  { label: "Internships", href: "/student/internships" },
+  { label: "Applications", href: "/student/applications" },
+  { label: "Assessments", href: "/student/assessments" },
+  { label: "Performance Analysis", href: "/student/analysis" },
+],
   admin: [{ label: "Overview", href: "/admin/dashboard" }, { label: "Internships", href: "/admin/internships" }, { label: "Applications", href: "/admin/applications" }, { label: "Assessments", href: "/admin/assessments" }],
   "super-admin": [{ label: "Overview", href: "/super-admin/dashboard" }, { label: "Internships", href: "/super-admin/internships" }, { label: "Applications", href: "/super-admin/applications" }, { label: "Assessments", href: "/super-admin/assessments" }],
 };
