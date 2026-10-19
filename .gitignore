@@ -1,12 +1,6 @@
 ## Default ignored items for next.js apps
 # dependencies
 /node_modules
-# Prisma setup (temporarily keep out of Git)
-/prisma/
-/prisma7.config.ts
-/generated/prisma/
-/src/lib/prisma.ts
-/src/prisma_test_script.ts
 /.pnp
 .pnp.*
 .yarn/*
