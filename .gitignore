@@ -1,6 +1,12 @@
 ## Default ignored items for next.js apps
 # dependencies
 /node_modules
+# Prisma setup (temporarily keep out of Git)
+/prisma/
+/prisma7.config.ts
+/generated/prisma/
+/src/lib/prisma.ts
+/src/prisma_test_script.ts
 /.pnp
 .pnp.*
 .yarn/*
@@ -29,8 +35,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files (keep secrets local; allow a safe template to be committed)
 .env*
+!.env.example
 
 # vercel
 .vercel
