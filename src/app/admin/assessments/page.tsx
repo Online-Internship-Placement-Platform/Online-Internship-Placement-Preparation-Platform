@@ -1,2 +1,2 @@
 import { AssessmentsPage } from "@/components/role-pages";
-export default function SuperAdminAssessmentsRoute() { return <AssessmentsPage role="admin" />; }
+export default function AdminAssessmentsRoute() { return <AssessmentsPage role="admin" />; }

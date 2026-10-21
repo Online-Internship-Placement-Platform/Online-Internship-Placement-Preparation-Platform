@@ -12,17 +12,77 @@ datasource db {
   provider = "mysql"
 }
 
-model User { 
-  id    Int     @id @default(autoincrement()) 
+model User {
+  id    Int     @id @default(autoincrement())
   email String  @unique
   name  String?
   posts Post[]
-} 
-model Post { 
-  id        Int     @id @default(autoincrement()) 
+}
+
+model Post {
+  id        Int     @id @default(autoincrement())
   title     String
   content   String? @db.Text
-  published Boolean @default(false) 
-  author    User    @relation(fields: [authorId], references: [id]) 
+  published Boolean @default(false)
+  author    User    @relation(fields: [authorId], references: [id])
   authorId  Int
-} 
+}
+
+enum PlacementDomain {
+  WEB_DEVELOPMENT
+  AI_ML
+  CORE_CS
+  NETWORKS
+  DATABASES
+}
+
+enum PlacementDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum AnswerOption {
+  A
+  B
+  C
+  D
+}
+
+model Question {
+  id            Int                 @id @default(autoincrement())
+  prompt        String              @db.Text
+  optionA       String              @db.Text
+  optionB       String              @db.Text
+  optionC       String              @db.Text
+  optionD       String              @db.Text
+  correctOption AnswerOption
+  domain        PlacementDomain
+  difficulty    PlacementDifficulty
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  tests         TestQuestion[]
+}
+
+model PlacementTest {
+  id          Int                 @id @default(autoincrement())
+  title       String              @db.VarChar(191)
+  description String?             @db.Text
+  domain      PlacementDomain
+  difficulty  PlacementDifficulty
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  questions   TestQuestion[]
+}
+
+model TestQuestion {
+  testId     Int
+  questionId Int
+  order      Int
+  test       PlacementTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+  question   Question      @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@id([testId, questionId])
+  @@unique([testId, order])
+  @@index([questionId])
+}
