@@ -12,17 +12,47 @@ datasource db {
   provider = "mysql"
 }
 
-model User { 
-  id    Int     @id @default(autoincrement()) 
-  email String  @unique
-  name  String?
-  posts Post[]
-} 
-model Post { 
-  id        Int     @id @default(autoincrement()) 
+model User {
+  id           Int           @id @default(autoincrement())
+  email        String        @unique
+  name         String?
+  role         String        @default("student")
+  branch       String?
+  cgpa         Float?
+  posts        Post[]
+  applications Application[]
+}
+
+model Post {
+  id        Int     @id @default(autoincrement())
   title     String
   content   String? @db.Text
-  published Boolean @default(false) 
-  author    User    @relation(fields: [authorId], references: [id]) 
+  published Boolean @default(false)
+  author    User    @relation(fields: [authorId], references: [id])
   authorId  Int
-} 
+}
+
+model Internship {
+  id                    String        @id
+  company               String
+  role                  String
+  applicationDeadline   DateTime      @db.Date
+  published             Boolean       @default(false)
+  acceptingApplications Boolean       @default(false)
+  minCgpa               Float         @default(0)
+  eligibleBranches      String        @db.Text
+  applications          Application[]
+}
+
+model Application {
+  id           Int        @id @default(autoincrement())
+  studentId    Int
+  internshipId String
+  status       String     @default("Pending")
+  appliedAt    DateTime   @default(now())
+  student      User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  internship   Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, internshipId])
+  @@index([internshipId])
+}

@@ -1,8 +1,7 @@
+import "server-only";
 import type { Role } from "@/lib/placement-data";
 
 export type AuthAccount = { email: string; password: string; role: Role; route: string };
-
-export const AUTH_STORAGE_KEY = "inplace-auth-session";
 
 export const authAccounts: AuthAccount[] = [
   { email: "student@gmail.com", password: "student", role: "student", route: "/student/dashboard" },
@@ -15,6 +14,3 @@ export function getAccount(email: string, password: string) {
   return authAccounts.find((account) => account.email === normalizedEmail && account.password === password);
 }
 
-export function getDashboardRoute(role: Role) {
-  return authAccounts.find((account) => account.role === role)?.route ?? "/login";
-}

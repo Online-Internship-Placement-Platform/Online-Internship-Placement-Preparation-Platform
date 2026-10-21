@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import type { Role } from "@/lib/placement-data";
-import { AUTH_STORAGE_KEY } from "@/lib/auth";
+import { AUTH_STORAGE_KEY } from "@/lib/auth-shared";
 
 const navItems: Record<Role, { label: string; href: string }[]> = {
   student: [{ label: "Overview", href: "/student/dashboard" }, { label: "Internships", href: "/student/internships" }, { label: "Applications", href: "/student/applications" }, { label: "Assessments", href: "/student/assessments" }],
@@ -25,7 +25,14 @@ export function AppShell({ children, role = "student", title, eyebrow }: { child
     return () => window.clearTimeout(timer);
   }, [role, router]);
   if (!ready) return <div className="min-h-screen bg-[var(--background)]" aria-label="Loading" />;
-  const logout = () => { window.sessionStorage.removeItem(AUTH_STORAGE_KEY); router.replace("/login"); };
+  const logout = async () => {
+    window.sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      router.replace("/login");
+    }
+  };
   return <div className="min-h-screen bg-[#f5f6f2] text-[#17211b] lg:flex">
     <aside className="flex w-full shrink-0 flex-col border-b border-[#e2e7e1] bg-[#fbfcfa] px-5 py-5 lg:min-h-screen lg:w-[238px] lg:border-b-0 lg:border-r lg:px-4">
       <Link href={home[role]} className="mb-8 flex items-center gap-3 px-2"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#176b50] text-sm font-bold text-white">IP</span><span><span className="block text-sm font-bold tracking-tight">InPlace</span><span className="block text-[10px] uppercase tracking-[0.14em] text-[#7b857c]">Placement hub</span></span></Link>
