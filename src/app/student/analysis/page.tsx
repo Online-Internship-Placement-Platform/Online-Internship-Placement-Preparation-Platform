@@ -101,6 +101,30 @@ export default function StudentAnalysisPage() {
   );
 
   const recommendations = weakest ? getResources(weakest.domain) : [];
+    const progressTrends = domainStats.map((domain) => {
+    const attempts = assessments
+      .filter((item) => item.domain === domain.domain)
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    const first = attempts[0];
+    const latest = attempts[attempts.length - 1];
+
+    const firstPercentage = first
+      ? getPercentage(first.score, first.total)
+      : 0;
+
+    const latestPercentage = latest
+      ? getPercentage(latest.score, latest.total)
+      : 0;
+
+    return {
+      domain: domain.domain,
+      attempts: attempts.length,
+      change: latestPercentage - firstPercentage,
+      firstPercentage,
+      latestPercentage,
+    };
+  });
 
   return (
     <AppShell
@@ -254,6 +278,49 @@ export default function StudentAnalysisPage() {
               within the same domain.
             </p>
           </section>
+
+          
+          <section className="mt-8">
+            <SectionTitle
+              title="Progress Trends"
+              description="Compare your earliest and latest scores within each domain."
+            />
+
+            <div className="grid gap-4 md:grid-cols-2">
+              {progressTrends.map((trend) => (
+                <div
+                  key={trend.domain}
+                  className="rounded-xl border border-[#e2e7e1] bg-white p-5"
+                >
+                  <h3 className="text-sm font-semibold">
+                    {trend.domain}
+                  </h3>
+
+                  {trend.attempts < 2 ? (
+                    <p className="mt-3 text-sm text-[#6e786f]">
+                      Complete another assessment in this domain to track
+                      your progress.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="mt-3 text-sm text-[#6e786f]">
+                        {trend.firstPercentage}% → {trend.latestPercentage}%
+                      </p>
+
+                      <p className="mt-2 text-sm font-semibold text-[#176b50]">
+                        {trend.change > 0
+                          ? `Improved by ${trend.change} percentage points`
+                          : trend.change < 0
+                            ? `Decreased by ${Math.abs(trend.change)} percentage points`
+                            : "Your score is unchanged"}
+                      </p>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+
 
           <section className="mt-8">
             <SectionTitle
