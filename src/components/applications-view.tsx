@@ -1,14 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { AppShell, StatusBadge } from "@/components/app-shell";
 import {
   applications,
   currentStudent,
   formatDate,
   getInternship,
-  type Application,
 } from "@/lib/placement-data";
 
 type ApplicationsViewProps = {
@@ -16,41 +14,13 @@ type ApplicationsViewProps = {
 };
 
 export default function ApplicationsView({ role = "student" }: ApplicationsViewProps) {
-  const [studentApplications, setStudentApplications] = useState<Application[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    try {
-      setStudentApplications(
-        applications.filter((application) => application.studentName === currentStudent.name),
-      );
-      setError(null);
-    } catch {
-      setError("We couldn't load your applications. Please try again later.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const studentApplications = applications.filter(
+    (application) => application.studentName === currentStudent.name,
+  );
 
   return (
     <AppShell role={role} title="My applications" eyebrow="Student workspace">
-      {isLoading ? (
-        <div
-          className="rounded-xl border border-[#e2e7e1] bg-white p-10 text-center text-sm text-[#6e786f]"
-          role="status"
-          aria-live="polite"
-        >
-          Loading your applications…
-        </div>
-      ) : error ? (
-        <div
-          className="rounded-xl border border-[#f1d1ce] bg-[#fff8f7] p-6 text-sm text-[#b94b48]"
-          role="alert"
-        >
-          {error}
-        </div>
-      ) : studentApplications.length === 0 ? (
+      {studentApplications.length === 0 ? (
         <div className="rounded-xl border border-[#e2e7e1] bg-white p-10 text-center">
           <h2 className="font-semibold">You haven’t applied to any internships yet.</h2>
           <p className="mt-2 text-sm text-[#6e786f]">
