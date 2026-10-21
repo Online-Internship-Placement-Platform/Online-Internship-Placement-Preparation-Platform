@@ -34,8 +34,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files (keep secrets local; allow a safe template to be committed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -43,5 +44,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-/generated/prisma
+# Generated Prisma client
+/generated/
