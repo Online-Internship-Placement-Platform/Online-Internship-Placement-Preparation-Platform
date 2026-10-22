@@ -19,6 +19,7 @@ model User {
   role         String        @default("student")
   branch       String?
   cgpa         Float?
+  skills       String        @default("") @db.VarChar(2048)
   posts        Post[]
   applications Application[]
 }
@@ -41,6 +42,7 @@ model Internship {
   acceptingApplications Boolean       @default(false)
   minCgpa               Float         @default(0)
   eligibleBranches      String        @db.Text
+  requiredSkills         String        @default("") @db.VarChar(2048)
   applications          Application[]
 }
 
@@ -50,6 +52,7 @@ model Application {
   internshipId String
   status       String     @default("Pending")
   appliedAt    DateTime   @default(now())
+  resumeStorageKey String?
   student      User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
   internship   Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade)
 

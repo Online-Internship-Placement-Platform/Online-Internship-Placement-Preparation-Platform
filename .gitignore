@@ -20,6 +20,7 @@ note.txt
 
 # production
 /build
+/private_uploads/
 
 # misc
 .DS_Store

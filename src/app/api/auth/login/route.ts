@@ -23,15 +23,16 @@ export async function POST(request: Request) {
   if (!account) return NextResponse.json({ error: "The email or password is incorrect." }, { status: 401 });
 
   try {
+    const studentProfile = account.role === "student"
+      ? { name: "Aarav Mehta", branch: "Computer Science", cgpa: 8.6, skills: ["React", "TypeScript", "SQL", "Figma"].join("\n") }
+      : {};
     const user = await prisma.user.upsert({
       where: { email: account.email },
       update: { role: account.role },
       create: {
         email: account.email,
         role: account.role,
-        ...(account.role === "student"
-          ? { name: "Aarav Mehta", branch: "Computer Science", cgpa: 8.6 }
-          : {}),
+        ...studentProfile,
       },
       select: { id: true, role: true },
     });

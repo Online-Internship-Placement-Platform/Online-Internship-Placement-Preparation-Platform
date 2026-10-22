@@ -15,10 +15,14 @@ export async function GET() {
         id: true,
         status: true,
         appliedAt: true,
+        resumeStorageKey: true,
         internship: { select: { id: true, company: true, role: true } },
       },
     });
-    return NextResponse.json({ applications });
+    return NextResponse.json({ applications: applications.map(({ resumeStorageKey, ...application }) => ({
+      ...application,
+      resumeUrl: resumeStorageKey ? `/api/student/applications/${application.id}/resume` : null,
+    })) });
   } catch (error) {
     console.error("Could not load the student's applications.", error);
     return NextResponse.json({ error: "Your applications are temporarily unavailable. Please try again." }, { status: 503 });
