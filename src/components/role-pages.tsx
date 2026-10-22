@@ -7,6 +7,7 @@ import ApplicationsView from "@/components/applications-view";
 import AdminApplicationsView from "@/components/admin-applications-view";
 import AssessmentsView from "@/components/assessments-view";
 import AdminAssessmentsView from "@/components/admin-assessments-view";
+import { listAvailablePlacementTests } from "@/app/student/assessments/actions";
 
 export function DashboardViewByRole({ role }: { role: Role }) {
   return role === "student" ? <DashboardView /> : <AdminDashboardView role={role} />;
@@ -20,8 +21,16 @@ export function ApplicationsViewByRole({ role }: { role: Role }) {
   return role === "student" ? <ApplicationsView role={role} /> : <AdminApplicationsView role={role} />;
 }
 
-export function AssessmentsViewByRole({ role }: { role: Role }) {
-  return role === "student" ? <AssessmentsView role={role} /> : <AdminAssessmentsView role={role} />;
+export async function AssessmentsViewByRole({ role }: { role: Role }) {
+  if (role !== "student") return <AdminAssessmentsView role={role} />;
+
+  const result = await listAvailablePlacementTests();
+  return (
+    <AssessmentsView
+      tests={result.success ? result.data : []}
+      error={result.success ? undefined : result.error}
+    />
+  );
 }
 
 export const DashboardPage = DashboardViewByRole;

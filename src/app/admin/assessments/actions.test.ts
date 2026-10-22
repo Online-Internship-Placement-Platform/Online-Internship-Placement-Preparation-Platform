@@ -12,6 +12,7 @@ vi.mock("@/lib/prisma", () => ({
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
+      findMany: vi.fn(),
     },
     testQuestion: {
       findMany: vi.fn(),
@@ -27,8 +28,9 @@ vi.mock("@/lib/server-auth", () => ({
 import {
   createPlacementTest,
   createQuestion,
-  deleteQuestion,
   deletePlacementTest,
+  deleteQuestion,
+  listQuestionBank,
   updateQuestion,
   updatePlacementTest,
 } from "@/app/admin/assessments/actions";
@@ -63,6 +65,7 @@ describe("question and placement-test server actions", () => {
     vi.mocked(prisma.placementTest.create).mockResolvedValue({} as never);
     vi.mocked(prisma.placementTest.update).mockResolvedValue({} as never);
     vi.mocked(prisma.placementTest.delete).mockResolvedValue({} as never);
+    vi.mocked(prisma.placementTest.findMany).mockResolvedValue([]);
     vi.mocked(prisma.testQuestion.findMany).mockResolvedValue([]);
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
@@ -83,11 +86,29 @@ describe("question and placement-test server actions", () => {
     expect(prisma.question.create).not.toHaveBeenCalled();
   });
 
-  it("enforces admin authorization before creating a question", async () => {
-    vi.mocked(getServerRole).mockResolvedValueOnce("student");
+  it("denies students every question-bank read and question/test management action", async () => {
+    vi.mocked(getServerRole).mockResolvedValue("student");
 
-    expect(await createQuestion(validQuestion)).toMatchObject({ success: false });
+    const results = await Promise.all([
+      listQuestionBank(),
+      createQuestion(validQuestion),
+      updateQuestion(7, validQuestion),
+      deleteQuestion(7),
+      createPlacementTest(validTest),
+      updatePlacementTest(5, validTest),
+      deletePlacementTest(5),
+    ]);
+
+    expect(results.every((result) => !result.success)).toBe(true);
+    expect(prisma.question.findMany).not.toHaveBeenCalled();
     expect(prisma.question.create).not.toHaveBeenCalled();
+    expect(prisma.question.update).not.toHaveBeenCalled();
+    expect(prisma.question.delete).not.toHaveBeenCalled();
+    expect(prisma.placementTest.findMany).not.toHaveBeenCalled();
+    expect(prisma.placementTest.create).not.toHaveBeenCalled();
+    expect(prisma.placementTest.update).not.toHaveBeenCalled();
+    expect(prisma.placementTest.delete).not.toHaveBeenCalled();
+    expect(prisma.testQuestion.findMany).not.toHaveBeenCalled();
   });
 
   it("creates a question in Prisma with trimmed fields and individually mapped options", async () => {
