@@ -17,6 +17,8 @@ import {
 } from "@/app/admin/assessments/actions";
 import {
   ANSWER_OPTIONS,
+  filterPlacementTests,
+  filterQuestions,
   getDifficultyLabel,
   getDomainLabel,
   isAnswerOption,
@@ -95,28 +97,13 @@ export default function AdminQuestionBank({ role }: { role: Role }) {
     };
   }, []);
 
-  const filteredQuestions = useMemo(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase();
-    return questions.filter((question) => {
-      const matchesDomain = domainFilter === "ALL" || question.domain === domainFilter;
-      const matchesDifficulty =
-        difficultyFilter === "ALL" || question.difficulty === difficultyFilter;
-      const matchesQuery =
-        !normalizedQuery ||
-        `${question.prompt} ${question.options.join(" ")}`
-          .toLocaleLowerCase()
-          .includes(normalizedQuery);
-      return matchesDomain && matchesDifficulty && matchesQuery;
-    });
-  }, [difficultyFilter, domainFilter, query, questions]);
+  const filteredQuestions = useMemo(
+    () => filterQuestions(questions, query, domainFilter, difficultyFilter),
+    [difficultyFilter, domainFilter, query, questions],
+  );
 
   const filteredTests = useMemo(
-    () =>
-      tests.filter(
-        (test) =>
-          (testDomainFilter === "ALL" || test.domain === testDomainFilter) &&
-          (testDifficultyFilter === "ALL" || test.difficulty === testDifficultyFilter),
-      ),
+    () => filterPlacementTests(tests, testDomainFilter, testDifficultyFilter),
     [testDifficultyFilter, testDomainFilter, tests],
   );
 

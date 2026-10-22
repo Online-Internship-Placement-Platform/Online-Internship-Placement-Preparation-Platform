@@ -18,6 +18,50 @@ export type PlacementDomain = (typeof PLACEMENT_DOMAINS)[number]["value"];
 export type PlacementDifficulty = (typeof PLACEMENT_DIFFICULTIES)[number]["value"];
 export type AnswerOption = (typeof ANSWER_OPTIONS)[number];
 
+type FilterableQuestion = {
+  prompt: string;
+  options: readonly string[];
+  domain: PlacementDomain;
+  difficulty: PlacementDifficulty;
+};
+
+type FilterableTest = {
+  domain: PlacementDomain;
+  difficulty: PlacementDifficulty;
+};
+
+export function filterQuestions<T extends FilterableQuestion>(
+  questions: T[],
+  query: string,
+  domain: PlacementDomain | "ALL",
+  difficulty: PlacementDifficulty | "ALL",
+) {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  return questions.filter((question) => {
+    const matchesDomain = domain === "ALL" || question.domain === domain;
+    const matchesDifficulty =
+      difficulty === "ALL" || question.difficulty === difficulty;
+    const matchesQuery =
+      !normalizedQuery ||
+      `${question.prompt} ${question.options.join(" ")}`
+        .toLocaleLowerCase()
+        .includes(normalizedQuery);
+    return matchesDomain && matchesDifficulty && matchesQuery;
+  });
+}
+
+export function filterPlacementTests<T extends FilterableTest>(
+  tests: T[],
+  domain: PlacementDomain | "ALL",
+  difficulty: PlacementDifficulty | "ALL",
+) {
+  return tests.filter(
+    (test) =>
+      (domain === "ALL" || test.domain === domain) &&
+      (difficulty === "ALL" || test.difficulty === difficulty),
+  );
+}
+
 export function isPlacementDomain(value: unknown): value is PlacementDomain {
   return (
     typeof value === "string" &&
