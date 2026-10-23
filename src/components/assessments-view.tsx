@@ -6,21 +6,53 @@ import {
   ANSWER_OPTIONS,
   getDifficultyLabel,
   getDomainLabel,
+  PLACEMENT_DOMAINS,
   type AnswerOption,
+  type PlacementDomain,
 } from "@/lib/assessment-options";
 import type { AvailablePlacementTest } from "@/app/student/assessments/actions";
+import { listAvailablePlacementTests } from "@/app/student/assessments/actions";
+
+// ─── Root component: domain selector ────────────────────────────────────────
 
 export default function AssessmentsView({
-  tests,
-  error,
+  initialTests,
+  error: initialError,
 }: {
-  tests: AvailablePlacementTest[];
+  initialTests: AvailablePlacementTest[];
   error?: string;
 }) {
+  const [selectedDomain, setSelectedDomain] = useState<PlacementDomain | null>(null);
   const [activeTestId, setActiveTestId] = useState<number | null>(null);
   const [answers, setAnswers] = useState<Record<number, AnswerOption>>({});
   const [submitted, setSubmitted] = useState(false);
-  const activeTest = tests.find((test) => test.id === activeTestId);
+  const [tests, setTests] = useState<AvailablePlacementTest[]>(initialTests);
+  const [loadError, setLoadError] = useState(initialError ?? "");
+  const [loading, setLoading] = useState(false);
+
+  // When a domain is selected, fetch tests for that domain client-side.
+  async function handleDomainSelect(domain: PlacementDomain) {
+    setSelectedDomain(domain);
+    setActiveTestId(null);
+    setAnswers({});
+    setSubmitted(false);
+    setLoadError("");
+    setLoading(true);
+    try {
+      const result = await listAvailablePlacementTests(domain);
+      if (result.success) {
+        setTests(result.data);
+      } else {
+        setLoadError(result.error);
+        setTests([]);
+      }
+    } catch {
+      setLoadError("Could not load practice tests. Please try again.");
+      setTests([]);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function startTest(testId: number) {
     setActiveTestId(testId);
@@ -33,21 +65,50 @@ export default function AssessmentsView({
     setSubmitted(true);
   }
 
-  return (
-    <AppShell role="student" title="Assessments" eyebrow="Preparation center">
-      <div className="mb-6">
-        <p className="text-sm text-[#6e786f]">
-          Choose an available placement test and answer its questions.
-        </p>
-      </div>
+  const activeTest = tests.find((test) => test.id === activeTestId);
 
-      {error && (
-        <p className="mb-4 rounded-lg border border-[#f1d1ce] bg-[#fff8f7] p-3 text-sm text-[#b94b48]" role="alert">
-          {error}
-        </p>
-      )}
+  // ── Domain picker ──────────────────────────────────────────────────────────
+  if (!selectedDomain) {
+    return (
+      <AppShell role="student" title="Assessments" eyebrow="Preparation center">
+        <div className="mb-6">
+          <p className="text-sm text-[#6e786f]">
+            Choose a domain to see available practice tests.
+          </p>
+        </div>
 
-      {activeTest ? (
+        {loadError && (
+          <p className="mb-4 rounded-lg border border-[#f1d1ce] bg-[#fff8f7] p-3 text-sm text-[#b94b48]" role="alert">
+            {loadError}
+          </p>
+        )}
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {PLACEMENT_DOMAINS.map((domain) => (
+            <button
+              key={domain.value}
+              type="button"
+              onClick={() => void handleDomainSelect(domain.value)}
+              className="rounded-xl border border-[#e2e7e1] bg-white p-6 text-left hover:border-[#176b50] hover:shadow-sm transition-shadow"
+            >
+              <h2 className="text-sm font-semibold text-[#17211b]">{domain.label}</h2>
+              <p className="mt-1 text-xs text-[#6e786f]">
+                3 default tests + any published tests
+              </p>
+              <span className="mt-3 inline-block rounded-lg bg-[#e6f2ec] px-3 py-1 text-xs font-semibold text-[#176b50]">
+                Practice →
+              </span>
+            </button>
+          ))}
+        </div>
+      </AppShell>
+    );
+  }
+
+  // ── Active test ────────────────────────────────────────────────────────────
+  if (activeTest) {
+    return (
+      <AppShell role="student" title="Assessments" eyebrow="Preparation center">
         <ActivePracticeTest
           test={activeTest}
           answers={answers}
@@ -58,28 +119,67 @@ export default function AssessmentsView({
           onSubmit={submitAttempt}
           onBack={() => setActiveTestId(null)}
         />
+      </AppShell>
+    );
+  }
+
+  // ── Test list for selected domain ──────────────────────────────────────────
+  const domainLabel = getDomainLabel(selectedDomain);
+
+  return (
+    <AppShell role="student" title="Assessments" eyebrow="Preparation center">
+      {/* Back to domain picker */}
+      <button
+        type="button"
+        onClick={() => setSelectedDomain(null)}
+        className="mb-6 flex items-center gap-1 text-sm font-semibold text-[#176b50] hover:underline"
+        aria-label="Back to domain selection"
+      >
+        ← All domains
+      </button>
+
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold">{domainLabel}</h2>
+        <p className="mt-1 text-sm text-[#6e786f]">
+          Select a practice test to begin.
+        </p>
+      </div>
+
+      {loadError && (
+        <p className="mb-4 rounded-lg border border-[#f1d1ce] bg-[#fff8f7] p-3 text-sm text-[#b94b48]" role="alert">
+          {loadError}
+        </p>
+      )}
+
+      {loading ? (
+        <p className="rounded-xl border border-[#e2e7e1] bg-white p-8 text-center text-sm text-[#6e786f]" role="status">
+          Loading tests…
+        </p>
       ) : tests.length === 0 ? (
         <p className="rounded-xl border border-[#e2e7e1] bg-white p-8 text-center text-sm text-[#6e786f]">
-          No practice tests are currently available.
+          No practice tests are currently available for this domain.
         </p>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {tests.map((test) => (
             <article key={test.id} className="rounded-xl border border-[#e2e7e1] bg-white p-5">
-              <div className="mb-3 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-wide text-[#69736b]">
-                <span className="rounded-md bg-[#f1f3ef] px-2 py-1">
-                  {getDomainLabel(test.domain)}
-                </span>
+              <div className="mb-3 flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-[#69736b]">
                 <span className="rounded-md bg-[#f1f3ef] px-2 py-1">
                   {getDifficultyLabel(test.difficulty)}
                 </span>
+                {test.isDefault && (
+                  <span className="rounded-md bg-[#e6f2ec] px-2 py-1 text-[#176b50]">
+                    Default
+                  </span>
+                )}
               </div>
-              <h2 className="text-sm font-semibold">{test.title}</h2>
+              <h3 className="text-sm font-semibold">{test.title}</h3>
               {test.description && (
                 <p className="mt-1 text-xs text-[#6e786f]">{test.description}</p>
               )}
               <p className="mt-3 text-xs text-[#6e786f]">
-                {test.questions.length} {test.questions.length === 1 ? "question" : "questions"}
+                {test.questions.length}{" "}
+                {test.questions.length === 1 ? "question" : "questions"}
               </p>
               <button
                 type="button"
@@ -95,6 +195,8 @@ export default function AssessmentsView({
     </AppShell>
   );
 }
+
+// ─── Active test component ───────────────────────────────────────────────────
 
 export function ActivePracticeTest({
   test,
@@ -164,7 +266,6 @@ export function ActivePracticeTest({
                         value={answer}
                         checked={answers[question.id] === answer}
                         onChange={() => onAnswer(question.id, answer)}
-                        required
                         disabled={submitted}
                         className="mt-0.5 accent-[#176b50]"
                       />

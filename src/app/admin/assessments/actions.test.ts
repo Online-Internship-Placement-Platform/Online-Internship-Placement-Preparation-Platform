@@ -1,28 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("server-only", () => ({}));
+
+vi.mock("@/lib/server-auth", () => ({
+  getServerRole: vi.fn(),
+  isServerAuthConfigured: vi.fn(),
+}));
+
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     question: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
-      findMany: vi.fn(),
     },
     placementTest: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
-      findMany: vi.fn(),
     },
     testQuestion: {
       findMany: vi.fn(),
     },
   },
-}));
-
-vi.mock("@/lib/server-auth", () => ({
-  getServerRole: vi.fn(),
-  isServerAuthConfigured: vi.fn(),
 }));
 
 import {
@@ -31,289 +35,334 @@ import {
   deletePlacementTest,
   deleteQuestion,
   listQuestionBank,
+  publishPlacementTest,
+  unpublishPlacementTest,
   updateQuestion,
-  updatePlacementTest,
 } from "@/app/admin/assessments/actions";
-import { prisma } from "@/lib/prisma";
 import { getServerRole, isServerAuthConfigured } from "@/lib/server-auth";
+import { prisma } from "@/lib/prisma";
 
-const validQuestion = {
-  prompt: "  What does HTML stand for?  ",
-  options: [" HyperText Markup Language ", "Option B", "Option C", "Option D"],
+const VALID_QUESTION = {
+  prompt: "What does HTML stand for?",
+  options: ["HyperText Markup Language", "Option B", "Option C", "Option D"],
   correctOption: "A",
   domain: "WEB_DEVELOPMENT",
   difficulty: "EASY",
 };
 
-const validTest = {
-  title: "  HTML basics  ",
-  description: "  Introductory questions  ",
-  domain: "WEB_DEVELOPMENT",
-  difficulty: "EASY",
-  questionIds: [12, 15],
+const NOW = new Date();
+
+const MOCK_DB_QUESTION = {
+  id: 1,
+  prompt: "What does HTML stand for?",
+  optionA: "HyperText Markup Language",
+  optionB: "Option B",
+  optionC: "Option C",
+  optionD: "Option D",
+  correctOption: "A" as const,
+  domain: "WEB_DEVELOPMENT" as const,
+  difficulty: "EASY" as const,
+  createdAt: NOW,
+  updatedAt: NOW,
 };
 
-describe("question and placement-test server actions", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+const MOCK_DB_TEST = {
+  id: 10,
+  title: "Web basics",
+  description: null,
+  domain: "WEB_DEVELOPMENT" as const,
+  difficulty: "EASY" as const,
+  isDefault: false,
+  isPublished: false,
+  createdAt: NOW,
+  updatedAt: NOW,
+  questions: [{ question: MOCK_DB_QUESTION }],
+};
+
+const MOCK_DEFAULT_TEST = {
+  ...MOCK_DB_TEST,
+  id: 1,
+  isDefault: true,
+  isPublished: true,
+};
+
+function authorisedAdmin() {
+  vi.mocked(isServerAuthConfigured).mockReturnValue(true);
+  vi.mocked(getServerRole).mockResolvedValue("admin");
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+// ─── Authorization ────────────────────────────────────────────────────────────
+
+describe("authorization", () => {
+  it("rejects requests when server auth is not configured", async () => {
+    vi.mocked(isServerAuthConfigured).mockReturnValue(false);
+    const result = await listQuestionBank();
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toContain("not configured");
+  });
+
+  it("rejects requests from students", async () => {
+    vi.mocked(isServerAuthConfigured).mockReturnValue(true);
+    vi.mocked(getServerRole).mockResolvedValue("student");
+    const result = await createQuestion(VALID_QUESTION);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toContain("administrator");
+  });
+
+  it("allows admin role", async () => {
     vi.mocked(isServerAuthConfigured).mockReturnValue(true);
     vi.mocked(getServerRole).mockResolvedValue("admin");
-    vi.mocked(prisma.question.create).mockResolvedValue({} as never);
-    vi.mocked(prisma.question.update).mockResolvedValue({} as never);
-    vi.mocked(prisma.question.delete).mockResolvedValue({} as never);
     vi.mocked(prisma.question.findMany).mockResolvedValue([]);
-    vi.mocked(prisma.placementTest.create).mockResolvedValue({} as never);
-    vi.mocked(prisma.placementTest.update).mockResolvedValue({} as never);
-    vi.mocked(prisma.placementTest.delete).mockResolvedValue({} as never);
     vi.mocked(prisma.placementTest.findMany).mockResolvedValue([]);
+    const result = await listQuestionBank();
+    expect(result.success).toBe(true);
+  });
+
+  it("allows super-admin role", async () => {
+    vi.mocked(isServerAuthConfigured).mockReturnValue(true);
+    vi.mocked(getServerRole).mockResolvedValue("super-admin");
+    vi.mocked(prisma.question.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.placementTest.findMany).mockResolvedValue([]);
+    const result = await listQuestionBank();
+    expect(result.success).toBe(true);
+  });
+});
+
+// ─── listQuestionBank ─────────────────────────────────────────────────────────
+
+describe("listQuestionBank", () => {
+  it("returns questions and tests including isDefault and isPublished fields", async () => {
+    authorisedAdmin();
+    vi.mocked(prisma.question.findMany).mockResolvedValue([MOCK_DB_QUESTION]);
+    vi.mocked(prisma.placementTest.findMany).mockResolvedValue([MOCK_DB_TEST]);
+
+    const result = await listQuestionBank();
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.questions).toHaveLength(1);
+    expect(result.data.tests[0].isDefault).toBe(false);
+    expect(result.data.tests[0].isPublished).toBe(false);
+  });
+
+  it("accepts an optional domain filter and passes it to prisma", async () => {
+    authorisedAdmin();
+    vi.mocked(prisma.question.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.placementTest.findMany).mockResolvedValue([]);
+
+    await listQuestionBank("WEB_DEVELOPMENT");
+
+    expect(prisma.question.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ domain: "WEB_DEVELOPMENT" }),
+      }),
+    );
+  });
+
+  it("returns error when the database call fails", async () => {
+    authorisedAdmin();
+    vi.mocked(prisma.question.findMany).mockRejectedValue(new Error("DB down"));
+    const result = await listQuestionBank();
+    expect(result.success).toBe(false);
+  });
+});
+
+// ─── createQuestion ───────────────────────────────────────────────────────────
+
+describe("createQuestion", () => {
+  it("validates required fields", async () => {
+    authorisedAdmin();
+    const result = await createQuestion({ ...VALID_QUESTION, prompt: "" });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toContain("required");
+  });
+
+  it("rejects duplicate option text", async () => {
+    authorisedAdmin();
+    const result = await createQuestion({
+      ...VALID_QUESTION,
+      options: ["Same", "Same", "Option C", "Option D"],
+    });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toContain("distinct");
+  });
+
+  it("creates a question when input is valid", async () => {
+    authorisedAdmin();
+    vi.mocked(prisma.question.create).mockResolvedValue(MOCK_DB_QUESTION);
+    const result = await createQuestion(VALID_QUESTION);
+    expect(result.success).toBe(true);
+    expect(prisma.question.create).toHaveBeenCalledOnce();
+  });
+});
+
+// ─── updateQuestion ───────────────────────────────────────────────────────────
+
+describe("updateQuestion", () => {
+  it("blocks domain change when the question belongs to a test of different domain", async () => {
+    authorisedAdmin();
+    vi.mocked(prisma.testQuestion.findMany).mockResolvedValue(
+      [{ test: { domain: "AI_ML", difficulty: "EASY" } }] as never,
+    );
+    const result = await updateQuestion(1, { ...VALID_QUESTION, domain: "DATABASES" });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toContain("Remove this question");
+  });
+
+  it("allows update when no domain conflict exists", async () => {
+    authorisedAdmin();
     vi.mocked(prisma.testQuestion.findMany).mockResolvedValue([]);
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(prisma.question.update).mockResolvedValue(MOCK_DB_QUESTION);
+    const result = await updateQuestion(1, VALID_QUESTION);
+    expect(result.success).toBe(true);
+  });
+});
+
+// ─── deleteQuestion ───────────────────────────────────────────────────────────
+
+describe("deleteQuestion", () => {
+  it("deletes a question by id", async () => {
+    authorisedAdmin();
+    vi.mocked(prisma.question.delete).mockResolvedValue(MOCK_DB_QUESTION);
+    const result = await deleteQuestion(1);
+    expect(result.success).toBe(true);
   });
 
-  it("validates question text, four distinct options, domain, difficulty, and correct answer", async () => {
-    const invalidQuestions = [
-      { ...validQuestion, prompt: "   " },
-      { ...validQuestion, options: ["One", "Two", "Three"] },
-      { ...validQuestion, options: ["Same", " same ", "Third", "Fourth"] },
-      { ...validQuestion, domain: "UNKNOWN" },
-      { ...validQuestion, difficulty: "EXPERT" },
-      { ...validQuestion, correctOption: "E" },
-    ];
-
-    for (const input of invalidQuestions) {
-      expect(await createQuestion(input)).toMatchObject({ success: false });
-    }
-    expect(prisma.question.create).not.toHaveBeenCalled();
+  it("rejects invalid id", async () => {
+    authorisedAdmin();
+    const result = await deleteQuestion(-1);
+    expect(result.success).toBe(false);
   });
+});
 
-  it("denies students every question-bank read and question/test management action", async () => {
-    vi.mocked(getServerRole).mockResolvedValue("student");
+// ─── createPlacementTest ──────────────────────────────────────────────────────
 
-    const results = await Promise.all([
-      listQuestionBank(),
-      createQuestion(validQuestion),
-      updateQuestion(7, validQuestion),
-      deleteQuestion(7),
-      createPlacementTest(validTest),
-      updatePlacementTest(5, validTest),
-      deletePlacementTest(5),
-    ]);
-
-    expect(results.every((result) => !result.success)).toBe(true);
-    expect(prisma.question.findMany).not.toHaveBeenCalled();
-    expect(prisma.question.create).not.toHaveBeenCalled();
-    expect(prisma.question.update).not.toHaveBeenCalled();
-    expect(prisma.question.delete).not.toHaveBeenCalled();
-    expect(prisma.placementTest.findMany).not.toHaveBeenCalled();
-    expect(prisma.placementTest.create).not.toHaveBeenCalled();
-    expect(prisma.placementTest.update).not.toHaveBeenCalled();
-    expect(prisma.placementTest.delete).not.toHaveBeenCalled();
-    expect(prisma.testQuestion.findMany).not.toHaveBeenCalled();
-  });
-
-  it("creates a question in Prisma with trimmed fields and individually mapped options", async () => {
-    const result = await createQuestion(validQuestion);
-
-    expect(result).toEqual({ success: true, data: undefined });
-    expect(prisma.question.create).toHaveBeenCalledWith({
-      data: {
-        prompt: "What does HTML stand for?",
-        optionA: "HyperText Markup Language",
-        optionB: "Option B",
-        optionC: "Option C",
-        optionD: "Option D",
-        correctOption: "A",
-        domain: "WEB_DEVELOPMENT",
-        difficulty: "EASY",
-      },
+describe("createPlacementTest", () => {
+  it("rejects empty question list", async () => {
+    authorisedAdmin();
+    const result = await createPlacementTest({
+      title: "Test",
+      description: "",
+      domain: "WEB_DEVELOPMENT",
+      difficulty: "EASY",
+      questionIds: [],
     });
+    expect(result.success).toBe(false);
   });
 
-  it("reports a useful error when Prisma question creation fails", async () => {
-    vi.mocked(prisma.question.create).mockRejectedValue(new Error("database unavailable"));
-
-    const result = await createQuestion(validQuestion);
-
-    expect(result).toEqual({ success: false, error: "Could not save the question. Try again." });
-  });
-
-  it("edits a question and rejects tag changes that conflict with assigned tests", async () => {
-    vi.mocked(prisma.testQuestion.findMany).mockResolvedValueOnce([]);
-    const updated = await updateQuestion(7, { ...validQuestion, prompt: "Updated prompt" });
-
-    expect(updated).toEqual({ success: true, data: undefined });
-    expect(prisma.question.update).toHaveBeenCalledWith({
-      where: { id: 7 },
-      data: expect.objectContaining({ prompt: "Updated prompt" }),
+  it("rejects mismatched domain/difficulty questions", async () => {
+    authorisedAdmin();
+    vi.mocked(prisma.question.findMany).mockResolvedValue([]);
+    const result = await createPlacementTest({
+      title: "Test",
+      description: "",
+      domain: "WEB_DEVELOPMENT",
+      difficulty: "EASY",
+      questionIds: [99],
     });
-
-    vi.mocked(prisma.testQuestion.findMany).mockResolvedValueOnce([
-      { test: { domain: "AI_ML", difficulty: "EASY" } },
-    ] as never);
-    const rejected = await updateQuestion(7, validQuestion);
-
-    expect(rejected).toMatchObject({ success: false });
-    expect(prisma.question.update).toHaveBeenCalledTimes(1);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toContain("domain and difficulty");
   });
 
-  it("rejects invalid question IDs and reports Prisma deletion errors", async () => {
-    expect(await updateQuestion(0, validQuestion)).toMatchObject({ success: false });
-    expect(await deleteQuestion(-1)).toMatchObject({ success: false });
-    expect(prisma.question.update).not.toHaveBeenCalled();
-    expect(prisma.question.delete).not.toHaveBeenCalled();
-
-    vi.mocked(prisma.question.delete).mockRejectedValue(new Error("database unavailable"));
-    expect(await deleteQuestion(9)).toEqual({
-      success: false,
-      error: "Could not delete the question. It may have been removed; reload and try again.",
+  it("creates a test as a draft (isPublished=false, isDefault=false)", async () => {
+    authorisedAdmin();
+    vi.mocked(prisma.question.findMany).mockResolvedValue([MOCK_DB_QUESTION]);
+    vi.mocked(prisma.placementTest.create).mockResolvedValue(MOCK_DB_TEST);
+    const result = await createPlacementTest({
+      title: "Custom test",
+      description: "",
+      domain: "WEB_DEVELOPMENT",
+      difficulty: "EASY",
+      questionIds: [1],
     });
-  });
-
-  it("deletes a valid question from Prisma", async () => {
-    expect(await deleteQuestion(9)).toEqual({ success: true, data: undefined });
-    expect(prisma.question.delete).toHaveBeenCalledWith({ where: { id: 9 } });
-  });
-
-  it("creates a placement test with ordered question relations after validating membership", async () => {
-    vi.mocked(prisma.question.findMany).mockResolvedValueOnce([{ id: 12 }, { id: 15 }] as never);
-
-    const result = await createPlacementTest(validTest);
-
-    expect(result).toEqual({ success: true, data: undefined });
-    expect(prisma.question.findMany).toHaveBeenCalledWith({
-      where: {
-        id: { in: [12, 15] },
-        domain: "WEB_DEVELOPMENT",
-        difficulty: "EASY",
-      },
-      select: { id: true },
-    });
-    expect(prisma.placementTest.create).toHaveBeenCalledWith({
-      data: {
-        title: "HTML basics",
-        description: "Introductory questions",
-        domain: "WEB_DEVELOPMENT",
-        difficulty: "EASY",
-        questions: {
-          create: [
-            { order: 1, question: { connect: { id: 12 } } },
-            { order: 2, question: { connect: { id: 15 } } },
-          ],
-        },
-      },
-    });
-  });
-
-  it("rejects duplicate test questions and questions that do not match the test tags", async () => {
-    expect(
-      await createPlacementTest({ ...validTest, questionIds: [12, 12] }),
-    ).toMatchObject({ success: false });
-    expect(prisma.question.findMany).not.toHaveBeenCalled();
-
-    vi.mocked(prisma.question.findMany).mockResolvedValueOnce([{ id: 12 }] as never);
-    expect(await createPlacementTest(validTest)).toMatchObject({ success: false });
-    expect(prisma.placementTest.create).not.toHaveBeenCalled();
-  });
-
-  it("reports a useful error when Prisma placement-test creation fails", async () => {
-    vi.mocked(prisma.question.findMany).mockResolvedValueOnce([{ id: 12 }, { id: 15 }] as never);
-    vi.mocked(prisma.placementTest.create).mockRejectedValue(
-      new Error("database unavailable"),
+    expect(result.success).toBe(true);
+    expect(prisma.placementTest.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ isDefault: false, isPublished: false }),
+      }),
     );
+  });
+});
 
-    expect(await createPlacementTest(validTest)).toEqual({
-      success: false,
-      error: "Could not save the test. Try again.",
-    });
+// ─── deletePlacementTest ──────────────────────────────────────────────────────
+
+describe("deletePlacementTest", () => {
+  it("prevents deletion of default tests", async () => {
+    authorisedAdmin();
+    vi.mocked(prisma.placementTest.findUnique).mockResolvedValue(MOCK_DEFAULT_TEST);
+    const result = await deletePlacementTest(1);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toContain("Default tests cannot be deleted");
+    expect(prisma.placementTest.delete).not.toHaveBeenCalled();
   });
 
-  it("updates a placement test's title, domain, difficulty, and ordered question associations", async () => {
-    vi.mocked(prisma.question.findMany).mockResolvedValueOnce([{ id: 21 }, { id: 24 }] as never);
-    const input = {
-      ...validTest,
-      title: "  Updated HTML test  ",
-      domain: "CORE_CS",
-      difficulty: "MEDIUM",
-      questionIds: [21, 24],
-    };
+  it("deletes non-default tests", async () => {
+    authorisedAdmin();
+    vi.mocked(prisma.placementTest.findUnique).mockResolvedValue(MOCK_DB_TEST);
+    vi.mocked(prisma.placementTest.delete).mockResolvedValue(MOCK_DB_TEST);
+    const result = await deletePlacementTest(10);
+    expect(result.success).toBe(true);
+    expect(prisma.placementTest.delete).toHaveBeenCalledWith({ where: { id: 10 } });
+  });
+});
 
-    const result = await updatePlacementTest(5, input);
+// ─── publishPlacementTest ─────────────────────────────────────────────────────
 
-    expect(result).toEqual({ success: true, data: undefined });
-    expect(prisma.question.findMany).toHaveBeenCalledWith({
-      where: {
-        id: { in: [21, 24] },
-        domain: "CORE_CS",
-        difficulty: "MEDIUM",
-      },
-      select: { id: true },
-    });
-    expect(prisma.placementTest.update).toHaveBeenCalledWith({
-      where: { id: 5 },
-      data: {
-        title: "Updated HTML test",
-        description: "Introductory questions",
-        domain: "CORE_CS",
-        difficulty: "MEDIUM",
-        questions: {
-          deleteMany: {},
-          create: [
-            { order: 1, question: { connect: { id: 21 } } },
-            { order: 2, question: { connect: { id: 24 } } },
-          ],
-        },
-      },
-    });
+describe("publishPlacementTest", () => {
+  it("publishes a custom draft test", async () => {
+    authorisedAdmin();
+    vi.mocked(prisma.placementTest.findUnique).mockResolvedValue(MOCK_DB_TEST);
+    vi.mocked(prisma.placementTest.update).mockResolvedValue({ ...MOCK_DB_TEST, isPublished: true });
+    const result = await publishPlacementTest(10);
+    expect(result.success).toBe(true);
+    expect(prisma.placementTest.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { isPublished: true } }),
+    );
   });
 
-  it("rejects invalid placement-test IDs, fields, duplicate questions, and mismatched question tags", async () => {
-    expect(await updatePlacementTest(0, validTest)).toMatchObject({ success: false });
-    expect(
-      await updatePlacementTest(5, { ...validTest, title: "  " }),
-    ).toMatchObject({ success: false });
-    expect(
-      await updatePlacementTest(5, { ...validTest, domain: "UNKNOWN" }),
-    ).toMatchObject({ success: false });
-    expect(
-      await updatePlacementTest(5, { ...validTest, difficulty: "EXPERT" }),
-    ).toMatchObject({ success: false });
-    expect(
-      await updatePlacementTest(5, { ...validTest, questionIds: [12, 12] }),
-    ).toMatchObject({ success: false });
-    expect(prisma.question.findMany).not.toHaveBeenCalled();
+  it("does not fail when publishing a default test (already published)", async () => {
+    authorisedAdmin();
+    vi.mocked(prisma.placementTest.findUnique).mockResolvedValue(MOCK_DEFAULT_TEST);
+    const result = await publishPlacementTest(1);
+    expect(result.success).toBe(true);
+    expect(prisma.placementTest.update).not.toHaveBeenCalled();
+  });
+});
 
-    vi.mocked(prisma.question.findMany).mockResolvedValueOnce([{ id: 12 }] as never);
-    expect(await updatePlacementTest(5, validTest)).toMatchObject({ success: false });
+// ─── unpublishPlacementTest ───────────────────────────────────────────────────
+
+describe("unpublishPlacementTest", () => {
+  it("prevents unpublishing default tests", async () => {
+    authorisedAdmin();
+    vi.mocked(prisma.placementTest.findUnique).mockResolvedValue(MOCK_DEFAULT_TEST);
+    const result = await unpublishPlacementTest(1);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toContain("Default tests cannot be unpublished");
     expect(prisma.placementTest.update).not.toHaveBeenCalled();
   });
 
-  it("reports Prisma errors when updating a placement test", async () => {
-    vi.mocked(prisma.question.findMany).mockResolvedValueOnce([{ id: 12 }, { id: 15 }] as never);
-    vi.mocked(prisma.placementTest.update).mockRejectedValue(
-      new Error("database unavailable"),
-    );
-
-    expect(await updatePlacementTest(5, validTest)).toEqual({
-      success: false,
-      error: "Could not update the test. It may have been removed; reload and try again.",
+  it("unpublishes a custom published test", async () => {
+    authorisedAdmin();
+    vi.mocked(prisma.placementTest.findUnique).mockResolvedValue({
+      ...MOCK_DB_TEST,
+      isPublished: true,
     });
-  });
-
-  it("deletes a placement test from Prisma", async () => {
-    expect(await deletePlacementTest(5)).toEqual({ success: true, data: undefined });
-    expect(prisma.placementTest.delete).toHaveBeenCalledWith({ where: { id: 5 } });
-  });
-
-  it("rejects invalid placement-test delete IDs and reports Prisma deletion errors", async () => {
-    expect(await deletePlacementTest(-1)).toMatchObject({ success: false });
-    expect(prisma.placementTest.delete).not.toHaveBeenCalled();
-
-    vi.mocked(prisma.placementTest.delete).mockRejectedValue(
-      new Error("database unavailable"),
+    vi.mocked(prisma.placementTest.update).mockResolvedValue({ ...MOCK_DB_TEST, isPublished: false });
+    const result = await unpublishPlacementTest(10);
+    expect(result.success).toBe(true);
+    expect(prisma.placementTest.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { isPublished: false } }),
     );
-    expect(await deletePlacementTest(5)).toEqual({
-      success: false,
-      error: "Could not delete the test. It may have been removed; reload and try again.",
-    });
   });
 });

@@ -39,6 +39,8 @@ export type TestRecord = {
   description: string | null;
   domain: PlacementDomain;
   difficulty: PlacementDifficulty;
+  isDefault: boolean;
+  isPublished: boolean;
   questions: QuestionRecord[];
 };
 
@@ -174,7 +176,7 @@ function toQuestionRecord(question: {
   };
 }
 
-export async function listQuestionBank(): Promise<ActionResult<{
+export async function listQuestionBank(domain?: PlacementDomain): Promise<ActionResult<{
   questions: QuestionRecord[];
   tests: TestRecord[];
 }>> {
@@ -182,12 +184,17 @@ export async function listQuestionBank(): Promise<ActionResult<{
   if (authError) return { success: false, error: authError };
 
   try {
+    const questionWhere = domain ? { domain } : {};
+    const testWhere = domain ? { domain } : {};
+
     const [questions, tests] = await Promise.all([
       prisma.question.findMany({
+        where: questionWhere,
         orderBy: [{ domain: "asc" }, { difficulty: "asc" }, { id: "desc" }],
       }),
       prisma.placementTest.findMany({
-        orderBy: [{ domain: "asc" }, { difficulty: "asc" }, { id: "desc" }],
+        where: testWhere,
+        orderBy: [{ isDefault: "desc" }, { difficulty: "asc" }, { id: "desc" }],
         include: {
           questions: {
             orderBy: { order: "asc" },
@@ -207,6 +214,8 @@ export async function listQuestionBank(): Promise<ActionResult<{
           description: test.description,
           domain: test.domain,
           difficulty: test.difficulty,
+          isDefault: test.isDefault,
+          isPublished: test.isPublished,
           questions: test.questions.map(({ question }) => toQuestionRecord(question)),
         })),
       },
@@ -338,6 +347,8 @@ export async function createPlacementTest(input: unknown): Promise<ActionResult>
         description: parsed.description || null,
         domain: parsed.domain,
         difficulty: parsed.difficulty,
+        isDefault: false,
+        isPublished: false,
         questions: {
           create: parsed.questionIds.map((questionId, index) => ({
             order: index + 1,
@@ -401,10 +412,86 @@ export async function deletePlacementTest(id: number): Promise<ActionResult> {
   if (!isValidId(id)) return { success: false, error: "Choose a valid test to delete." };
 
   try {
+    const test = await prisma.placementTest.findUnique({
+      where: { id },
+      select: { isDefault: true },
+    });
+
+    if (test?.isDefault) {
+      return {
+        success: false,
+        error: "Default tests cannot be deleted. They are part of the standard curriculum.",
+      };
+    }
+
     await prisma.placementTest.delete({ where: { id } });
     return { success: true, data: undefined };
   } catch (error) {
     console.error("Failed to delete a placement test.", error);
     return { success: false, error: "Could not delete the test. It may have been removed; reload and try again." };
+  }
+}
+
+export async function publishPlacementTest(id: number): Promise<ActionResult> {
+  const authError = await authorizationError();
+  if (authError) return { success: false, error: authError };
+  if (!isValidId(id)) return { success: false, error: "Choose a valid test to publish." };
+
+  try {
+    const test = await prisma.placementTest.findUnique({
+      where: { id },
+      select: { isDefault: true },
+    });
+
+    if (!test) {
+      return { success: false, error: "Test not found. It may have been removed; reload and try again." };
+    }
+
+    // Default tests are always published; no action needed but not an error.
+    if (test.isDefault) {
+      return { success: true, data: undefined };
+    }
+
+    await prisma.placementTest.update({
+      where: { id },
+      data: { isPublished: true },
+    });
+    return { success: true, data: undefined };
+  } catch (error) {
+    console.error("Failed to publish a placement test.", error);
+    return { success: false, error: "Could not publish the test. Try again." };
+  }
+}
+
+export async function unpublishPlacementTest(id: number): Promise<ActionResult> {
+  const authError = await authorizationError();
+  if (authError) return { success: false, error: authError };
+  if (!isValidId(id)) return { success: false, error: "Choose a valid test to unpublish." };
+
+  try {
+    const test = await prisma.placementTest.findUnique({
+      where: { id },
+      select: { isDefault: true },
+    });
+
+    if (!test) {
+      return { success: false, error: "Test not found. It may have been removed; reload and try again." };
+    }
+
+    if (test.isDefault) {
+      return {
+        success: false,
+        error: "Default tests cannot be unpublished. They are always available to students.",
+      };
+    }
+
+    await prisma.placementTest.update({
+      where: { id },
+      data: { isPublished: false },
+    });
+    return { success: true, data: undefined };
+  } catch (error) {
+    console.error("Failed to unpublish a placement test.", error);
+    return { success: false, error: "Could not unpublish the test. Try again." };
   }
 }

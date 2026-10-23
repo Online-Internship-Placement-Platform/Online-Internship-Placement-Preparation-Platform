@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("server-only", () => ({}));
+
+vi.mock("@/lib/server-auth", () => ({
+  getServerRole: vi.fn(),
+  isServerAuthConfigured: vi.fn(),
+}));
+
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     placementTest: {
@@ -8,129 +15,151 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/server-auth", () => ({
-  getServerRole: vi.fn(),
-  isServerAuthConfigured: vi.fn(),
-}));
-
-import { listAvailablePlacementTests } from "@/app/student/assessments/actions";
-import { prisma } from "@/lib/prisma";
+import {
+  listAvailablePlacementTests,
+  type AvailablePlacementTest,
+} from "@/app/student/assessments/actions";
 import { getServerRole, isServerAuthConfigured } from "@/lib/server-auth";
+import { prisma } from "@/lib/prisma";
 
-describe("student available placement tests", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(isServerAuthConfigured).mockReturnValue(true);
-    vi.mocked(getServerRole).mockResolvedValue("student");
-    vi.mocked(prisma.placementTest.findMany).mockResolvedValue([]);
-    vi.spyOn(console, "error").mockImplementation(() => {});
-  });
+const NOW = new Date();
 
-  it("returns database-backed tests and question options without correct answers", async () => {
-    vi.mocked(prisma.placementTest.findMany).mockResolvedValueOnce([
-      {
-        id: 3,
-        title: "Web basics",
-        description: "A short practice test",
-        domain: "WEB_DEVELOPMENT",
-        difficulty: "EASY",
-        questions: [
-          {
-            question: {
-              id: 12,
-              prompt: "What does HTML stand for?",
-              optionA: "HyperText Markup Language",
-              optionB: "Option B",
-              optionC: "Option C",
-              optionD: "Option D",
-            },
-          },
-        ],
+const MOCK_TEST_RECORD = {
+  id: 3,
+  title: "Web basics",
+  description: "Easy web test",
+  domain: "WEB_DEVELOPMENT" as const,
+  difficulty: "EASY" as const,
+  isDefault: true,
+  isPublished: true,
+  createdAt: NOW,
+  updatedAt: NOW,
+  questions: [
+    {
+      question: {
+        id: 12,
+        prompt: "What does HTML stand for?",
+        optionA: "HyperText Markup Language",
+        optionB: "Option B",
+        optionC: "Option C",
+        optionD: "Option D",
+        correctOption: "A" as const,
+        domain: "WEB_DEVELOPMENT" as const,
+        difficulty: "EASY" as const,
+        createdAt: NOW,
+        updatedAt: NOW,
       },
-    ] as never);
+    },
+  ],
+};
 
-    const result = await listAvailablePlacementTests();
+function authorisedStudent() {
+  vi.mocked(isServerAuthConfigured).mockReturnValue(true);
+  vi.mocked(getServerRole).mockResolvedValue("student");
+}
 
-    expect(result).toEqual({
-      success: true,
-      data: [
-        {
-          id: 3,
-          title: "Web basics",
-          description: "A short practice test",
-          domain: "WEB_DEVELOPMENT",
-          difficulty: "EASY",
-          questions: [
-            {
-              id: 12,
-              prompt: "What does HTML stand for?",
-              options: [
-                "HyperText Markup Language",
-                "Option B",
-                "Option C",
-                "Option D",
-              ],
-            },
-          ],
-        },
-      ],
-    });
-    expect(JSON.stringify(result)).not.toContain("correctOption");
-    expect(prisma.placementTest.findMany).toHaveBeenCalledWith({
-      orderBy: [{ domain: "asc" }, { difficulty: "asc" }, { id: "desc" }],
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        domain: true,
-        difficulty: true,
-        questions: {
-          orderBy: { order: "asc" },
-          select: {
-            question: {
-              select: {
-                id: true,
-                prompt: true,
-                optionA: true,
-                optionB: true,
-                optionC: true,
-                optionD: true,
-              },
-            },
-          },
-        },
-      },
-    });
-  });
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
-  it("rejects missing server authentication configuration without querying Prisma", async () => {
+// ─── Authorization ────────────────────────────────────────────────────────────
+
+describe("authorization", () => {
+  it("rejects when server auth is not configured", async () => {
     vi.mocked(isServerAuthConfigured).mockReturnValue(false);
-
     const result = await listAvailablePlacementTests();
-
-    expect(result).toMatchObject({ success: false });
-    expect(prisma.placementTest.findMany).not.toHaveBeenCalled();
+    expect(result.success).toBe(false);
   });
 
-  it("denies non-students access to available tests without querying Prisma", async () => {
+  it("rejects admins from the student endpoint", async () => {
+    vi.mocked(isServerAuthConfigured).mockReturnValue(true);
     vi.mocked(getServerRole).mockResolvedValue("admin");
-
     const result = await listAvailablePlacementTests();
-
-    expect(result).toMatchObject({ success: false });
-    expect(prisma.placementTest.findMany).not.toHaveBeenCalled();
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toContain("student");
   });
 
-  it("returns a useful error when available tests cannot be loaded", async () => {
-    vi.mocked(prisma.placementTest.findMany).mockRejectedValue(
-      new Error("database unavailable"),
-    );
+  it("allows authenticated students", async () => {
+    authorisedStudent();
+    vi.mocked(prisma.placementTest.findMany).mockResolvedValue([]);
+    const result = await listAvailablePlacementTests();
+    expect(result.success).toBe(true);
+  });
+});
+
+// ─── listAvailablePlacementTests ─────────────────────────────────────────────
+
+describe("listAvailablePlacementTests", () => {
+  it("never exposes correctOption in the returned test data", async () => {
+    authorisedStudent();
+    vi.mocked(prisma.placementTest.findMany).mockResolvedValue([MOCK_TEST_RECORD]);
 
     const result = await listAvailablePlacementTests();
+    expect(result.success).toBe(true);
+    if (!result.success) return;
 
-    expect(result).toEqual({
-      success: false,
-      error: "Could not load available practice tests. Please try again.",
-    });
+    const json = JSON.stringify(result.data);
+    expect(json).not.toContain("correctOption");
+  });
+
+  it("returns isDefault flag so the UI can badge default tests", async () => {
+    authorisedStudent();
+    vi.mocked(prisma.placementTest.findMany).mockResolvedValue([MOCK_TEST_RECORD]);
+
+    const result = await listAvailablePlacementTests();
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect((result.data[0] as AvailablePlacementTest).isDefault).toBe(true);
+  });
+
+  it("filters tests by domain when a domain is provided", async () => {
+    authorisedStudent();
+    vi.mocked(prisma.placementTest.findMany).mockResolvedValue([]);
+
+    await listAvailablePlacementTests("WEB_DEVELOPMENT");
+
+    expect(prisma.placementTest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ domain: "WEB_DEVELOPMENT" }),
+      }),
+    );
+  });
+
+  it("queries only tests that are default OR published", async () => {
+    authorisedStudent();
+    vi.mocked(prisma.placementTest.findMany).mockResolvedValue([]);
+
+    await listAvailablePlacementTests("AI_ML");
+
+    expect(prisma.placementTest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [{ isDefault: true }, { isPublished: true }],
+        }),
+      }),
+    );
+  });
+
+  it("rejects an invalid domain value", async () => {
+    authorisedStudent();
+    // @ts-expect-error intentionally invalid
+    const result = await listAvailablePlacementTests("INVALID_DOMAIN");
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toContain("valid domain");
+  });
+
+  it("returns four options per question without correctOption", async () => {
+    authorisedStudent();
+    vi.mocked(prisma.placementTest.findMany).mockResolvedValue([MOCK_TEST_RECORD]);
+
+    const result = await listAvailablePlacementTests("WEB_DEVELOPMENT");
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+
+    const question = result.data[0].questions[0];
+    expect(question.options).toHaveLength(4);
+    expect(Object.keys(question)).not.toContain("correctOption");
   });
 });

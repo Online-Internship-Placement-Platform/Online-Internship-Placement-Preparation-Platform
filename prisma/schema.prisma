@@ -70,6 +70,8 @@ model PlacementTest {
   description String?             @db.Text
   domain      PlacementDomain
   difficulty  PlacementDifficulty
+  isDefault   Boolean             @default(false)
+  isPublished Boolean             @default(false)
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
   questions   TestQuestion[]

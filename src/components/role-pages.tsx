@@ -7,7 +7,6 @@ import ApplicationsView from "@/components/applications-view";
 import AdminApplicationsView from "@/components/admin-applications-view";
 import AssessmentsView from "@/components/assessments-view";
 import AdminAssessmentsView from "@/components/admin-assessments-view";
-import { listAvailablePlacementTests } from "@/app/student/assessments/actions";
 
 export function DashboardViewByRole({ role }: { role: Role }) {
   return role === "student" ? <DashboardView /> : <AdminDashboardView role={role} />;
@@ -21,16 +20,12 @@ export function ApplicationsViewByRole({ role }: { role: Role }) {
   return role === "student" ? <ApplicationsView role={role} /> : <AdminApplicationsView role={role} />;
 }
 
-export async function AssessmentsViewByRole({ role }: { role: Role }) {
+// AssessmentsViewByRole is synchronous — the student domain picker fetches
+// tests client-side after the user selects a domain, so no server-side
+// pre-fetch is needed here.
+export function AssessmentsViewByRole({ role }: { role: Role }) {
   if (role !== "student") return <AdminAssessmentsView role={role} />;
-
-  const result = await listAvailablePlacementTests();
-  return (
-    <AssessmentsView
-      tests={result.success ? result.data : []}
-      error={result.success ? undefined : result.error}
-    />
-  );
+  return <AssessmentsView initialTests={[]} />;
 }
 
 export const DashboardPage = DashboardViewByRole;
