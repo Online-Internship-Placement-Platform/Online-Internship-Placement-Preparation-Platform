@@ -1,6 +1,6 @@
 export type Role = "student" | "admin" | "super-admin";
 export type InternshipStatus = "Open" | "Closed";
-export type ApplicationStatus = "Under review" | "Shortlisted" | "Rejected";
+export type ApplicationStatus = "Pending" | "Under review" | "Shortlisted" | "Rejected";
 
 export type Student = { id: string; name: string; email: string; branch: string; cgpa: number; skills: string[]; avatar: string };
 export type Internship = { id: string; company: string; role: string; domain: string; location: string; skills: string[]; branches: string[]; minCgpa: number; deadline: string; stipend: string; description: string };
@@ -19,6 +19,6 @@ export const applications: Application[] = [
   { id: "app-001", internshipId: "int-001", studentName: "Aarav Mehta", appliedOn: "2026-10-12", status: "Shortlisted" }, { id: "app-002", internshipId: "int-002", studentName: "Aarav Mehta", appliedOn: "2026-10-10", status: "Under review" }, { id: "app-003", internshipId: "int-003", studentName: "Aarav Mehta", appliedOn: "2026-09-28", status: "Rejected" }, { id: "app-004", internshipId: "int-001", studentName: "Ishita Shah", appliedOn: "2026-10-13", status: "Under review" }, { id: "app-005", internshipId: "int-004", studentName: "Kabir Rao", appliedOn: "2026-10-11", status: "Under review" },
 ];
 export const assessments: Assessment[] = [{ name: "Frontend Foundations", domain: "Software Development", score: 42, total: 50, date: "2026-10-14" }, { name: "SQL & Data Modeling", domain: "Data & Analytics", score: 35, total: 50, date: "2026-10-05" }, { name: "Product Thinking", domain: "Design", score: 31, total: 50, date: "2026-09-22" }];
-export function getInternshipStatus(deadline: string): InternshipStatus { return new Date(`${deadline}T23:59:59`) >= new Date("2026-10-18T00:00:00") ? "Open" : "Closed"; }
+export function getInternshipStatus(deadline: string): InternshipStatus { return new Date(`${deadline}T23:59:59.999Z`).getTime() >= Date.now() ? "Open" : "Closed"; }
 export function getInternship(id: string) { return internships.find((internship) => internship.id === id); }
 export function formatDate(date: string) { return new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric" }).format(new Date(`${date}T00:00:00`)); }

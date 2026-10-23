@@ -16,6 +16,12 @@ export interface EligibilityResult {
   reasons: string[];
 }
 
+export interface EligibilityCheck {
+  criterion: string;
+  eligible: boolean;
+  reasons: string[];
+}
+
 const CGPA_MIN = 0;
 const CGPA_MAX = 10;
 
@@ -62,62 +68,59 @@ export function checkEligibility(
   internship: InternshipEligibilityRequirements,
   now: Date = new Date(),
 ): EligibilityResult {
-  const reasons: string[] = [];
+  const checks = getEligibilityChecks(student, internship, now);
+  const reasons = checks.flatMap((check) => check.reasons);
+  return { eligible: checks.every((check) => check.eligible), reasons };
+}
+
+/** Returns criterion-level results for displaying the same checks used by submission. */
+export function getEligibilityChecks(
+  student: StudentEligibilityProfile,
+  internship: InternshipEligibilityRequirements,
+  now: Date = new Date(),
+): EligibilityCheck[] {
+  const checks: EligibilityCheck[] = [];
 
   const studentCgpaIsValid = isValidCgpa(student.cgpa);
-  if (!studentCgpaIsValid) {
-    reasons.push("Student CGPA must be a finite number from 0 to 10.");
-  }
-
   const minimumCgpaIsValid = isValidCgpa(internship.minCgpa);
-  if (!minimumCgpaIsValid) {
-    reasons.push("Internship minimum CGPA must be a finite number from 0 to 10.");
-  } else if (studentCgpaIsValid && student.cgpa < internship.minCgpa) {
-    reasons.push("Student CGPA is below the internship minimum.");
-  }
+  const cgpaReasons: string[] = [];
+  if (!studentCgpaIsValid) cgpaReasons.push("Student CGPA must be a finite number from 0 to 10.");
+  if (!minimumCgpaIsValid) cgpaReasons.push("Internship minimum CGPA must be a finite number from 0 to 10.");
+  else if (studentCgpaIsValid && student.cgpa < internship.minCgpa) cgpaReasons.push("Student CGPA is below the internship minimum.");
+  checks.push({ criterion: "CGPA", eligible: cgpaReasons.length === 0, reasons: cgpaReasons });
 
   const studentBranch = typeof student.branch === "string" ? normalizeName(student.branch) : "";
   const eligibleBranches = normalizeStringList(internship.eligibleBranches);
-
-  if (studentBranch.length === 0) {
-    reasons.push("Student branch is required.");
-  }
-
-  if (eligibleBranches === null || eligibleBranches.length === 0) {
-    reasons.push("Internship must list at least one eligible branch.");
-  } else if (studentBranch.length > 0 && !eligibleBranches.includes(studentBranch)) {
-    reasons.push("Student branch is not eligible for this internship.");
-  }
+  const branchReasons: string[] = [];
+  if (studentBranch.length === 0) branchReasons.push("Student branch is required.");
+  if (eligibleBranches === null || eligibleBranches.length === 0) branchReasons.push("Internship must list at least one eligible branch.");
+  else if (studentBranch.length > 0 && !eligibleBranches.includes("any branch") && !eligibleBranches.includes(studentBranch)) branchReasons.push("Student branch is not eligible for this internship.");
+  checks.push({ criterion: "Branch", eligible: branchReasons.length === 0, reasons: branchReasons });
 
   const studentSkills = normalizeStringList(student.skills);
-  if (studentSkills === null) {
-    reasons.push("Student skills must be a valid list of skill names.");
-  }
-
   const requiredSkills = normalizeStringList(internship.requiredSkills);
-  if (requiredSkills === null) {
-    reasons.push("Internship required skills must be a valid list of skill names.");
-  } else if (studentSkills !== null) {
+  if (studentSkills === null) {
+    checks.push({ criterion: "Skills", eligible: false, reasons: ["Student skills must be a valid list of skill names."] });
+  } else if (requiredSkills === null) {
+    checks.push({ criterion: "Skills", eligible: false, reasons: ["Internship required skills must be a valid list of skill names."] });
+  } else if (requiredSkills.length === 0) {
+    checks.push({ criterion: "Skills", eligible: true, reasons: [] });
+  } else {
     for (const skill of requiredSkills) {
-      if (!studentSkills.includes(skill)) {
-        reasons.push(`Student is missing required skill: ${skill}.`);
-      }
+      const eligible = studentSkills.includes(skill);
+      checks.push({ criterion: skill, eligible, reasons: eligible ? [] : [`Student is missing required skill: ${skill}.`] });
     }
   }
 
   const deadline = parseDeadline(internship.applicationDeadline);
-  if (deadline === null) {
-    reasons.push("Application deadline is invalid.");
-  }
-
+  const deadlineReasons: string[] = [];
+  if (deadline === null) deadlineReasons.push("Application deadline is invalid.");
   if (!(now instanceof Date) || Number.isNaN(now.getTime())) {
-    reasons.push("Current date/time is invalid.");
+    deadlineReasons.push("Current date/time is invalid.");
   } else if (deadline !== null && now.getTime() > deadline.getTime()) {
-    reasons.push("Application deadline has passed.");
+    deadlineReasons.push("Application deadline has passed.");
   }
+  checks.push({ criterion: "Deadline", eligible: deadlineReasons.length === 0, reasons: deadlineReasons });
 
-  return {
-    eligible: reasons.length === 0,
-    reasons,
-  };
+  return checks;
 }
