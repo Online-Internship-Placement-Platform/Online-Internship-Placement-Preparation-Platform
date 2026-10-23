@@ -13,10 +13,11 @@ vi.mock("@/lib/auth-actions", () => ({
 
 vi.mock("@/app/student/assessments/actions", () => ({
   listAvailablePlacementTests: vi.fn(),
+  scoreAttempt: vi.fn(),
 }));
 
 import { ActivePracticeTest } from "@/components/assessments-view";
-import type { AvailablePlacementTest } from "@/app/student/assessments/actions";
+import type { AvailablePlacementTest, QuestionResult } from "@/app/student/assessments/actions";
 
 const testData: AvailablePlacementTest = {
   id: 3,
@@ -47,6 +48,17 @@ const testData: AvailablePlacementTest = {
       ],
     },
   ],
+};
+
+const mockScoreResult = {
+  totalQuestions: 2,
+  answeredCount: 2,
+  correctCount: 1,
+  percentage: 50,
+  questionResults: [
+    { questionId: 12, studentAnswer: "A" as const, correctAnswer: "A" as const, isCorrect: true },
+    { questionId: 13, studentAnswer: "B" as const, correctAnswer: "C" as const, isCorrect: false },
+  ] satisfies QuestionResult[],
 };
 
 // ─── Submission allowed regardless of answer completeness ────────────────────
@@ -106,7 +118,201 @@ describe("student assessment submission — partial/empty answer support", () =>
   });
 });
 
-// ─── Post-submission display ──────────────────────────────────────────────────
+// ─── Correct answers NOT shown before submission ──────────────────────────────
+
+describe("pre-submission — correct answers not shown", () => {
+  it("does not reveal correct answer indicators before submission", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ActivePracticeTest, {
+        test: testData,
+        answers: { 12: "A" },
+        submitted: false,
+        onAnswer: vi.fn(),
+        onSubmit: vi.fn(),
+        onBack: vi.fn(),
+      }),
+    );
+    expect(markup).not.toContain("(correct)");
+    expect(markup).not.toContain("Correct");
+    expect(markup).not.toContain("Incorrect");
+    expect(markup).not.toContain("You scored");
+    expect(markup).not.toContain("correctAnswer");
+  });
+});
+
+// ─── Submitting state prevents duplicate submissions ─────────────────────────
+
+describe("submitting state", () => {
+  it("shows Scoring… label and disables button while scoring", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ActivePracticeTest, {
+        test: testData,
+        answers: {},
+        submitted: false,
+        scoring: true,
+        onAnswer: vi.fn(),
+        onSubmit: vi.fn(),
+        onBack: vi.fn(),
+      }),
+    );
+    expect(markup).toContain("Scoring…");
+    expect(markup).not.toContain(">Submit answers<");
+    // disabled attribute should be present
+    expect(markup).toContain('disabled=""');
+  });
+});
+
+// ─── Error display and retry ──────────────────────────────────────────────────
+
+describe("scoring error", () => {
+  it("displays an error message and keeps submit button visible for retry", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ActivePracticeTest, {
+        test: testData,
+        answers: { 12: "A" },
+        submitted: false,
+        scoreError: "Could not score the test. Please try again.",
+        onAnswer: vi.fn(),
+        onSubmit: vi.fn(),
+        onBack: vi.fn(),
+      }),
+    );
+    expect(markup).toContain("Could not score the test. Please try again.");
+    expect(markup).toContain("Submit answers");
+  });
+});
+
+// ─── Post-submission score summary ───────────────────────────────────────────
+
+describe("post-submission score display", () => {
+  it("shows the score summary after successful submission", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ActivePracticeTest, {
+        test: testData,
+        answers: { 12: "A", 13: "B" },
+        submitted: true,
+        scoreResult: mockScoreResult,
+        onAnswer: vi.fn(),
+        onSubmit: vi.fn(),
+        onBack: vi.fn(),
+      }),
+    );
+    expect(markup).toContain("You scored 1 / 2 (50%)");
+  });
+
+  it("hides the submit button after successful submission", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ActivePracticeTest, {
+        test: testData,
+        answers: { 12: "A", 13: "B" },
+        submitted: true,
+        scoreResult: mockScoreResult,
+        onAnswer: vi.fn(),
+        onSubmit: vi.fn(),
+        onBack: vi.fn(),
+      }),
+    );
+    expect(markup).not.toContain("Submit answers");
+    expect(markup).not.toContain("Scoring…");
+  });
+
+  it("keeps questions and answer options visible after submission", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ActivePracticeTest, {
+        test: testData,
+        answers: { 12: "A", 13: "B" },
+        submitted: true,
+        scoreResult: mockScoreResult,
+        onAnswer: vi.fn(),
+        onSubmit: vi.fn(),
+        onBack: vi.fn(),
+      }),
+    );
+    expect(markup).toContain("What does HTML stand for?");
+    expect(markup).toContain("HyperText Markup Language");
+    expect(markup).toContain("What does CSS stand for?");
+  });
+
+  it("indicates a correct answer after submission", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ActivePracticeTest, {
+        test: testData,
+        answers: { 12: "A", 13: "B" },
+        submitted: true,
+        scoreResult: mockScoreResult,
+        onAnswer: vi.fn(),
+        onSubmit: vi.fn(),
+        onBack: vi.fn(),
+      }),
+    );
+    expect(markup).toContain("✓ Correct");
+  });
+
+  it("indicates an incorrect answer after submission", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ActivePracticeTest, {
+        test: testData,
+        answers: { 12: "A", 13: "B" },
+        submitted: true,
+        scoreResult: mockScoreResult,
+        onAnswer: vi.fn(),
+        onSubmit: vi.fn(),
+        onBack: vi.fn(),
+      }),
+    );
+    expect(markup).toContain("✗ Incorrect");
+  });
+
+  it("reveals the correct answer for each question after submission", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ActivePracticeTest, {
+        test: testData,
+        answers: { 12: "A", 13: "B" },
+        submitted: true,
+        scoreResult: mockScoreResult,
+        onAnswer: vi.fn(),
+        onSubmit: vi.fn(),
+        onBack: vi.fn(),
+      }),
+    );
+    // The correct option is highlighted with "(correct)" label
+    expect(markup).toContain("(correct)");
+  });
+});
+
+// ─── Unanswered questions after submission ────────────────────────────────────
+
+describe("unanswered questions after submission", () => {
+  it("labels unanswered questions as 'Not answered' and shows the correct answer", () => {
+    const unansweredResult = {
+      totalQuestions: 2,
+      answeredCount: 0,
+      correctCount: 0,
+      percentage: 0,
+      questionResults: [
+        { questionId: 12, studentAnswer: null, correctAnswer: "A" as const, isCorrect: false },
+        { questionId: 13, studentAnswer: null, correctAnswer: "C" as const, isCorrect: false },
+      ] satisfies QuestionResult[],
+    };
+
+    const markup = renderToStaticMarkup(
+      createElement(ActivePracticeTest, {
+        test: testData,
+        answers: {},
+        submitted: true,
+        scoreResult: unansweredResult,
+        onAnswer: vi.fn(),
+        onSubmit: vi.fn(),
+        onBack: vi.fn(),
+      }),
+    );
+    expect(markup).toContain("Not answered");
+    // Correct answer options are revealed
+    expect(markup).toContain("(correct)");
+  });
+});
+
+// ─── Post-submission display (legacy compatibility) ───────────────────────────
 
 describe("student assessment submission view", () => {
   it("keeps the question, options, and selected answer visible after submission", () => {
@@ -115,13 +321,22 @@ describe("student assessment submission view", () => {
         test: testData,
         answers: { 12: "A" },
         submitted: true,
+        scoreResult: {
+          totalQuestions: 2,
+          answeredCount: 1,
+          correctCount: 1,
+          percentage: 50,
+          questionResults: [
+            { questionId: 12, studentAnswer: "A" as const, correctAnswer: "A" as const, isCorrect: true },
+            { questionId: 13, studentAnswer: null, correctAnswer: "C" as const, isCorrect: false },
+          ],
+        },
         onAnswer: vi.fn(),
         onSubmit: vi.fn(),
         onBack: vi.fn(),
       }),
     );
 
-    expect(markup).toContain("Your answers are recorded in this page session only.");
     expect(markup).toContain("What does HTML stand for?");
     expect(markup).toContain("HyperText Markup Language");
     const selectedInput = markup.match(/<input[^>]*name="question-12"[^>]*>/)?.[0];
@@ -132,18 +347,28 @@ describe("student assessment submission view", () => {
     expect(markup).not.toContain("correctOption");
   });
 
-  it("hides the submit button and shows the result notice after submission", () => {
+  it("hides the submit button after submission", () => {
     const markup = renderToStaticMarkup(
       createElement(ActivePracticeTest, {
         test: testData,
         answers: {},
         submitted: true,
+        scoreResult: {
+          totalQuestions: 2,
+          answeredCount: 0,
+          correctCount: 0,
+          percentage: 0,
+          questionResults: [
+            { questionId: 12, studentAnswer: null, correctAnswer: "A" as const, isCorrect: false },
+            { questionId: 13, studentAnswer: null, correctAnswer: "C" as const, isCorrect: false },
+          ],
+        },
         onAnswer: vi.fn(),
         onSubmit: vi.fn(),
         onBack: vi.fn(),
       }),
     );
-    expect(markup).toContain("Your answers are recorded in this page session only.");
+    expect(markup).toContain("You scored");
     expect(markup).not.toContain("Submit answers");
   });
 });

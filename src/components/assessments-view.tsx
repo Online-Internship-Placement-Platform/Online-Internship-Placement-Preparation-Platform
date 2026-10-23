@@ -10,8 +10,8 @@ import {
   type AnswerOption,
   type PlacementDomain,
 } from "@/lib/assessment-options";
-import type { AvailablePlacementTest } from "@/app/student/assessments/actions";
-import { listAvailablePlacementTests } from "@/app/student/assessments/actions";
+import type { AvailablePlacementTest, QuestionResult } from "@/app/student/assessments/actions";
+import { listAvailablePlacementTests, scoreAttempt } from "@/app/student/assessments/actions";
 
 // ─── Root component: domain selector ────────────────────────────────────────
 
@@ -29,13 +29,17 @@ export default function AssessmentsView({
   const [tests, setTests] = useState<AvailablePlacementTest[]>(initialTests);
   const [loadError, setLoadError] = useState(initialError ?? "");
   const [loading, setLoading] = useState(false);
+  const [scoreResult, setScoreResult] = useState<import("@/app/student/assessments/actions").ScoreResult | null>(null);
+  const [scoring, setScoring] = useState(false);
+  const [scoreError, setScoreError] = useState("");
 
-  // When a domain is selected, fetch tests for that domain client-side.
   async function handleDomainSelect(domain: PlacementDomain) {
     setSelectedDomain(domain);
     setActiveTestId(null);
     setAnswers({});
     setSubmitted(false);
+    setScoreResult(null);
+    setScoreError("");
     setLoadError("");
     setLoading(true);
     try {
@@ -58,11 +62,28 @@ export default function AssessmentsView({
     setActiveTestId(testId);
     setAnswers({});
     setSubmitted(false);
+    setScoreResult(null);
+    setScoreError("");
   }
 
-  function submitAttempt(event: FormEvent<HTMLFormElement>) {
+  async function submitAttempt(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmitted(true);
+    if (!activeTestId || scoring) return;
+    setScoring(true);
+    setScoreError("");
+    try {
+      const result = await scoreAttempt(activeTestId, answers);
+      if (result.success) {
+        setScoreResult(result);
+        setSubmitted(true);
+      } else {
+        setScoreError(result.error);
+      }
+    } catch {
+      setScoreError("Scoring failed. Please try again.");
+    } finally {
+      setScoring(false);
+    }
   }
 
   const activeTest = tests.find((test) => test.id === activeTestId);
@@ -113,6 +134,9 @@ export default function AssessmentsView({
           test={activeTest}
           answers={answers}
           submitted={submitted}
+          scoring={scoring}
+          scoreError={scoreError}
+          scoreResult={submitted && scoreResult && scoreResult.success ? scoreResult : null}
           onAnswer={(questionId, answer) =>
             setAnswers((current) => ({ ...current, [questionId]: answer }))
           }
@@ -202,6 +226,9 @@ export function ActivePracticeTest({
   test,
   answers,
   submitted,
+  scoring = false,
+  scoreError = "",
+  scoreResult = null,
   onAnswer,
   onSubmit,
   onBack,
@@ -209,10 +236,24 @@ export function ActivePracticeTest({
   test: AvailablePlacementTest;
   answers: Record<number, AnswerOption>;
   submitted: boolean;
+  scoring?: boolean;
+  scoreError?: string;
+  scoreResult?: {
+    totalQuestions: number;
+    answeredCount: number;
+    correctCount: number;
+    percentage: number;
+    questionResults: QuestionResult[];
+  } | null;
   onAnswer: (questionId: number, answer: AnswerOption) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onBack: () => void;
 }) {
+  // Build a lookup map from questionResults for fast access.
+  const resultByQuestionId = new Map<number, QuestionResult>(
+    scoreResult?.questionResults.map((r) => [r.questionId, r]) ?? [],
+  );
+
   return (
     <section aria-labelledby="active-test-heading" className="rounded-xl border border-[#e2e7e1] bg-white p-5">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
@@ -237,52 +278,113 @@ export function ActivePracticeTest({
         <p className="mb-5 text-sm text-[#6e786f]">{test.description}</p>
       )}
 
-      {submitted && (
-        <div className="mb-5 rounded-lg border border-[#b9d6c4] bg-[#f7fbf8] p-4 text-sm text-[#176b50]" role="status">
-          Your answers are recorded in this page session only. Scores and saved attempt history are not available yet.
+      {/* Score summary — shown only after successful scoring */}
+      {submitted && scoreResult && (
+        <div
+          className="mb-5 rounded-lg border border-[#b9d6c4] bg-[#f7fbf8] p-4 text-sm text-[#176b50]"
+          role="status"
+          aria-live="polite"
+        >
+          You scored {scoreResult.correctCount} / {scoreResult.totalQuestions} (
+          {scoreResult.percentage % 1 === 0
+            ? scoreResult.percentage.toFixed(0)
+            : scoreResult.percentage.toFixed(1)}
+          %)
         </div>
       )}
+
+      {/* Scoring error — allows retry */}
+      {scoreError && !submitted && (
+        <p
+          className="mb-5 rounded-lg border border-[#f1d1ce] bg-[#fff8f7] p-3 text-sm text-[#b94b48]"
+          role="alert"
+        >
+          {scoreError}
+        </p>
+      )}
+
       <form onSubmit={onSubmit}>
         <div className="space-y-5">
-          {test.questions.map((question, index) => (
-            <fieldset
-              key={question.id}
-              className="rounded-lg border border-[#edf0ec] p-4"
-            >
-              <legend className="px-1 text-sm font-semibold">
-                {index + 1}. {question.prompt}
-              </legend>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                {question.options.map((option, optionIndex) => {
-                  const answer = ANSWER_OPTIONS[optionIndex];
-                  return (
-                    <label
-                      key={answer}
-                      className="flex items-start gap-2 rounded-md border border-[#edf0ec] p-3 text-sm text-[#405147]"
-                    >
-                      <input
-                        type="radio"
-                        name={`question-${question.id}`}
-                        value={answer}
-                        checked={answers[question.id] === answer}
-                        onChange={() => onAnswer(question.id, answer)}
-                        disabled={submitted}
-                        className="mt-0.5 accent-[#176b50]"
-                      />
-                      <span>{option}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </fieldset>
-          ))}
+          {test.questions.map((question, index) => {
+            const result = resultByQuestionId.get(question.id);
+            const isUnanswered = submitted && result?.studentAnswer === null;
+            const isCorrect = submitted && result?.isCorrect === true;
+            const isIncorrect = submitted && result !== undefined && !result.isCorrect;
+
+            // Border color after submission
+            let fieldsetClass = "rounded-lg border border-[#edf0ec] p-4";
+            if (isCorrect) fieldsetClass = "rounded-lg border border-[#b9d6c4] bg-[#f7fbf8] p-4";
+            else if (isIncorrect) fieldsetClass = "rounded-lg border border-[#f1d1ce] bg-[#fff8f7] p-4";
+
+            return (
+              <fieldset key={question.id} className={fieldsetClass}>
+                <legend className="px-1 text-sm font-semibold">
+                  {index + 1}. {question.prompt}
+                </legend>
+
+                {/* Post-submission status badge */}
+                {submitted && result && (
+                  <p className="mt-1 text-xs font-semibold" aria-live="polite">
+                    {isUnanswered ? (
+                      <span className="text-[#6e786f]">Not answered</span>
+                    ) : isCorrect ? (
+                      <span className="text-[#176b50]">✓ Correct</span>
+                    ) : (
+                      <span className="text-[#b94b48]">✗ Incorrect</span>
+                    )}
+                  </p>
+                )}
+
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {question.options.map((option, optionIndex) => {
+                    const answer = ANSWER_OPTIONS[optionIndex];
+                    const isStudentPick = answers[question.id] === answer;
+                    const isCorrectOption = submitted && result?.correctAnswer === answer;
+
+                    // Highlight correct option after submission
+                    let labelClass = "flex items-start gap-2 rounded-md border border-[#edf0ec] p-3 text-sm text-[#405147]";
+                    if (submitted) {
+                      if (isCorrectOption) {
+                        labelClass = "flex items-start gap-2 rounded-md border border-[#b9d6c4] bg-[#eaf5ef] p-3 text-sm text-[#176b50] font-semibold";
+                      } else if (isStudentPick && !isCorrectOption) {
+                        labelClass = "flex items-start gap-2 rounded-md border border-[#f1d1ce] bg-[#fff8f7] p-3 text-sm text-[#b94b48]";
+                      }
+                    }
+
+                    return (
+                      <label key={answer} className={labelClass}>
+                        <input
+                          type="radio"
+                          name={`question-${question.id}`}
+                          value={answer}
+                          checked={isStudentPick}
+                          onChange={() => onAnswer(question.id, answer)}
+                          disabled={submitted}
+                          className="mt-0.5 accent-[#176b50]"
+                        />
+                        <span>
+                          {option}
+                          {submitted && isCorrectOption && (
+                            <span className="ml-1 text-xs">(correct)</span>
+                          )}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            );
+          })}
         </div>
+
         {!submitted && (
           <button
             type="submit"
-            className="mt-5 rounded-lg bg-[#176b50] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#12563f]"
+            disabled={scoring}
+            aria-disabled={scoring}
+            className="mt-5 rounded-lg bg-[#176b50] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#12563f] disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Submit answers
+            {scoring ? "Scoring…" : "Submit answers"}
           </button>
         )}
       </form>
