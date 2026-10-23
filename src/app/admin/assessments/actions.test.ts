@@ -37,6 +37,7 @@ import {
   listQuestionBank,
   publishPlacementTest,
   unpublishPlacementTest,
+  updatePlacementTest,
   updateQuestion,
 } from "@/app/admin/assessments/actions";
 import { getServerRole, isServerAuthConfigured } from "@/lib/server-auth";
@@ -364,5 +365,109 @@ describe("unpublishPlacementTest", () => {
     expect(prisma.placementTest.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { isPublished: false } }),
     );
+  });
+});
+
+// ─── updatePlacementTest ──────────────────────────────────────────────────────
+
+describe("updatePlacementTest", () => {
+  const VALID_TEST_INPUT = {
+    title: "Updated test",
+    description: "Updated description",
+    domain: "WEB_DEVELOPMENT" as const,
+    difficulty: "EASY" as const,
+    questionIds: [1],
+  };
+
+  it("rejects an invalid (non-positive) test id", async () => {
+    authorisedAdmin();
+    const result = await updatePlacementTest(0, VALID_TEST_INPUT);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toContain("valid test");
+  });
+
+  it("rejects invalid input (empty title)", async () => {
+    authorisedAdmin();
+    const result = await updatePlacementTest(10, { ...VALID_TEST_INPUT, title: "" });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toContain("required");
+  });
+
+  it("rejects questions with mismatched domain or difficulty", async () => {
+    authorisedAdmin();
+    // findMany returns empty — no matching questions found
+    vi.mocked(prisma.question.findMany).mockResolvedValue([]);
+    const result = await updatePlacementTest(10, VALID_TEST_INPUT);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toContain("domain and difficulty");
+  });
+
+  it("updates a custom test when input is valid", async () => {
+    authorisedAdmin();
+    vi.mocked(prisma.question.findMany).mockResolvedValue([MOCK_DB_QUESTION]);
+    vi.mocked(prisma.placementTest.update).mockResolvedValue({
+      ...MOCK_DB_TEST,
+      title: "Updated test",
+      description: "Updated description",
+    });
+
+    const result = await updatePlacementTest(10, VALID_TEST_INPUT);
+    expect(result.success).toBe(true);
+    expect(prisma.placementTest.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 10 },
+        data: expect.objectContaining({
+          title: "Updated test",
+          description: "Updated description",
+        }),
+      }),
+    );
+  });
+
+  it("replaces question assignments on update (deleteMany then create)", async () => {
+    authorisedAdmin();
+    vi.mocked(prisma.question.findMany).mockResolvedValue([MOCK_DB_QUESTION]);
+    vi.mocked(prisma.placementTest.update).mockResolvedValue(MOCK_DB_TEST);
+
+    await updatePlacementTest(10, VALID_TEST_INPUT);
+
+    expect(prisma.placementTest.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          questions: expect.objectContaining({
+            deleteMany: {},
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("handles database errors safely and returns a friendly error", async () => {
+    authorisedAdmin();
+    vi.mocked(prisma.question.findMany).mockResolvedValue([MOCK_DB_QUESTION]);
+    vi.mocked(prisma.placementTest.update).mockRejectedValue(new Error("DB error"));
+
+    const result = await updatePlacementTest(10, VALID_TEST_INPUT);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toMatch(/could not update|reload and try again/i);
+  });
+
+  it("rejects unauthenticated users", async () => {
+    vi.mocked(isServerAuthConfigured).mockReturnValue(false);
+    const result = await updatePlacementTest(10, VALID_TEST_INPUT);
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects student role", async () => {
+    vi.mocked(isServerAuthConfigured).mockReturnValue(true);
+    vi.mocked(getServerRole).mockResolvedValue("student");
+    const result = await updatePlacementTest(10, VALID_TEST_INPUT);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toContain("administrator");
   });
 });

@@ -122,6 +122,8 @@ function DomainView({
     "closed",
   );
   const [testForm, setTestForm] = useState<"closed" | "create" | TestRecord>("closed");
+  const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null);
+  const [editingTestId, setEditingTestId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -239,6 +241,8 @@ function DomainView({
   async function completeSave(message: string) {
     setQuestionForm("closed");
     setTestForm("closed");
+    setEditingQuestionId(null);
+    setEditingTestId(null);
     setNotice(message);
     setError("");
     await loadData();
@@ -360,46 +364,58 @@ function DomainView({
                         key={question.id}
                         className="rounded-xl border border-[#e2e7e1] bg-white p-5"
                       >
-                        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-                          <h4 className="max-w-3xl text-sm font-semibold">{question.prompt}</h4>
-                        </div>
-                        <ul className="grid gap-2 text-xs text-[#5e6b61] sm:grid-cols-2">
-                          {question.options.map((option, index) => {
-                            const letter = ANSWER_OPTIONS[index];
-                            return (
-                              <li
-                                className={`rounded-lg border px-3 py-2 ${
-                                  question.correctOption === letter
-                                    ? "border-[#b9d6c4] bg-[#f7fbf8] text-[#176b50]"
-                                    : "border-[#edf0ec] bg-[#fafbf9]"
-                                }`}
-                                key={letter}
+                        {editingQuestionId === question.id ? (
+                          <QuestionForm
+                            key={question.id}
+                            initial={question}
+                            defaultDomain={domain}
+                            onCancel={() => setEditingQuestionId(null)}
+                            onSaved={() => completeSave("Question saved.")}
+                          />
+                        ) : (
+                          <>
+                            <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                              <h4 className="max-w-3xl text-sm font-semibold">{question.prompt}</h4>
+                            </div>
+                            <ul className="grid gap-2 text-xs text-[#5e6b61] sm:grid-cols-2">
+                              {question.options.map((option, index) => {
+                                const letter = ANSWER_OPTIONS[index];
+                                return (
+                                  <li
+                                    className={`rounded-lg border px-3 py-2 ${
+                                      question.correctOption === letter
+                                        ? "border-[#b9d6c4] bg-[#f7fbf8] text-[#176b50]"
+                                        : "border-[#edf0ec] bg-[#fafbf9]"
+                                    }`}
+                                    key={letter}
+                                  >
+                                    <span className="mr-2 font-bold">{letter}.</span>
+                                    {option}
+                                    {question.correctOption === letter && (
+                                      <span className="ml-2 font-semibold">Correct answer</span>
+                                    )}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                            <div className="mt-4 flex justify-end gap-4">
+                              <button
+                                type="button"
+                                onClick={() => setEditingQuestionId(question.id)}
+                                className="text-xs font-semibold text-[#176b50]"
                               >
-                                <span className="mr-2 font-bold">{letter}.</span>
-                                {option}
-                                {question.correctOption === letter && (
-                                  <span className="ml-2 font-semibold">Correct answer</span>
-                                )}
-                              </li>
-                            );
-                          })}
-                        </ul>
-                        <div className="mt-4 flex justify-end gap-4">
-                          <button
-                            type="button"
-                            onClick={() => setQuestionForm(question)}
-                            className="text-xs font-semibold text-[#176b50]"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void removeQuestion(question)}
-                            className="text-xs font-semibold text-[#b94b48]"
-                          >
-                            Delete
-                          </button>
-                        </div>
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void removeQuestion(question)}
+                                className="text-xs font-semibold text-[#b94b48]"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </article>
                     ))}
                   </div>
@@ -433,6 +449,7 @@ function DomainView({
 
         {testForm !== "closed" && (
           <TestForm
+            key={testForm === "create" ? "create" : testForm.id}
             initial={testForm === "create" ? null : testForm}
             questions={questions}
             defaultDomain={domain}
@@ -456,79 +473,92 @@ function DomainView({
                 key={test.id}
                 className="rounded-xl border border-[#e2e7e1] bg-white p-5"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-semibold">{test.title}</h3>
-                      {test.isDefault && (
-                        <span className="shrink-0 rounded-md bg-[#e6f2ec] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#176b50]">
-                          Default
-                        </span>
-                      )}
+                {editingTestId === test.id ? (
+                  <TestForm
+                    key={test.id}
+                    initial={test}
+                    questions={questions}
+                    defaultDomain={domain}
+                    onCancel={() => setEditingTestId(null)}
+                    onSaved={() => completeSave("Test saved.")}
+                  />
+                ) : (
+                  <>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-sm font-semibold">{test.title}</h3>
+                          {test.isDefault && (
+                            <span className="shrink-0 rounded-md bg-[#e6f2ec] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#176b50]">
+                              Default
+                            </span>
+                          )}
+                          {!test.isDefault && (
+                            <span
+                              className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                                test.isPublished
+                                  ? "bg-[#e6f2ec] text-[#176b50]"
+                                  : "bg-[#f5f6f2] text-[#69736b]"
+                              }`}
+                            >
+                              {test.isPublished ? "Published" : "Draft"}
+                            </span>
+                          )}
+                        </div>
+                        {test.description && (
+                          <p className="mt-1 text-xs text-[#6e786f]">{test.description}</p>
+                        )}
+                      </div>
+                      <span className="shrink-0 rounded-md bg-[#f1f3ef] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[#69736b]">
+                        {getDifficultyLabel(test.difficulty)}
+                      </span>
+                    </div>
+                    <p className="mt-4 text-xs font-semibold text-[#176b50]">
+                      {test.questions.length} {test.questions.length === 1 ? "question" : "questions"}
+                    </p>
+                    <ol className="mt-2 list-inside list-decimal space-y-1 text-xs text-[#5e6b61]">
+                      {test.questions.map((question) => (
+                        <li key={question.id}>{question.prompt}</li>
+                      ))}
+                    </ol>
+                    <div className="mt-4 flex flex-wrap justify-end gap-3">
                       {!test.isDefault && (
-                        <span
-                          className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                        <button
+                          type="button"
+                          onClick={() => void togglePublish(test)}
+                          className={`text-xs font-semibold ${
                             test.isPublished
-                              ? "bg-[#e6f2ec] text-[#176b50]"
-                              : "bg-[#f5f6f2] text-[#69736b]"
+                              ? "text-[#a86618]"
+                              : "text-[#176b50]"
                           }`}
                         >
-                          {test.isPublished ? "Published" : "Draft"}
-                        </span>
+                          {test.isPublished ? "Unpublish" : "Publish"}
+                        </button>
+                      )}
+                      {!test.isDefault && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingTestId(test.id)}
+                          className="text-xs font-semibold text-[#176b50]"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {!test.isDefault && (
+                        <button
+                          type="button"
+                          onClick={() => void removeTest(test)}
+                          className="text-xs font-semibold text-[#b94b48]"
+                        >
+                          Delete
+                        </button>
+                      )}
+                      {test.isDefault && (
+                        <span className="text-xs text-[#9aa49b]">Default — always available to students</span>
                       )}
                     </div>
-                    {test.description && (
-                      <p className="mt-1 text-xs text-[#6e786f]">{test.description}</p>
-                    )}
-                  </div>
-                  <span className="shrink-0 rounded-md bg-[#f1f3ef] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[#69736b]">
-                    {getDifficultyLabel(test.difficulty)}
-                  </span>
-                </div>
-                <p className="mt-4 text-xs font-semibold text-[#176b50]">
-                  {test.questions.length} {test.questions.length === 1 ? "question" : "questions"}
-                </p>
-                <ol className="mt-2 list-inside list-decimal space-y-1 text-xs text-[#5e6b61]">
-                  {test.questions.map((question) => (
-                    <li key={question.id}>{question.prompt}</li>
-                  ))}
-                </ol>
-                <div className="mt-4 flex flex-wrap justify-end gap-3">
-                  {!test.isDefault && (
-                    <button
-                      type="button"
-                      onClick={() => void togglePublish(test)}
-                      className={`text-xs font-semibold ${
-                        test.isPublished
-                          ? "text-[#a86618]"
-                          : "text-[#176b50]"
-                      }`}
-                    >
-                      {test.isPublished ? "Unpublish" : "Publish"}
-                    </button>
-                  )}
-                  {!test.isDefault && (
-                    <button
-                      type="button"
-                      onClick={() => setTestForm(test)}
-                      className="text-xs font-semibold text-[#176b50]"
-                    >
-                      Edit
-                    </button>
-                  )}
-                  {!test.isDefault && (
-                    <button
-                      type="button"
-                      onClick={() => void removeTest(test)}
-                      className="text-xs font-semibold text-[#b94b48]"
-                    >
-                      Delete
-                    </button>
-                  )}
-                  {test.isDefault && (
-                    <span className="text-xs text-[#9aa49b]">Default — always available to students</span>
-                  )}
-                </div>
+                  </>
+                )}
               </article>
             ))}
           </div>
