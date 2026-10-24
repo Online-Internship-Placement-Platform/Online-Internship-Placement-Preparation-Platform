@@ -1,6 +1,7 @@
 export type Role = "student" | "admin" | "super-admin";
 export type InternshipStatus = "Open" | "Closed";
-export type ApplicationStatus = "Pending" | "Under review" | "Shortlisted" | "Rejected";
+export const APPLICATION_STATUSES = ["Pending", "Under review", "Shortlisted", "Rejected"] as const;
+export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
 export type Student = { id: string; name: string; email: string; branch: string; cgpa: number; skills: string[]; avatar: string };
 export type Internship = { id: string; company: string; role: string; domain: string; location: string; skills: string[]; branches: string[]; minCgpa: number; deadline: string; stipend: string; description: string };
