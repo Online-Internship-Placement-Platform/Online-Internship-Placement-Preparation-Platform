@@ -9,6 +9,11 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    // npm test runs only Sprint 1 tests.
+    // additional/ (106 archived tests) and sprint2/ are excluded from this default run.
+    // To run archived tests separately: npx vitest run src/tests/placement-test-management/additional/
+    include: [
+      "src/tests/placement-test-management/sprint1/**/*.test.ts",
+    ],
   },
 });
