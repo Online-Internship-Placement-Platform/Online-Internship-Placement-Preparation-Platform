@@ -55,7 +55,7 @@ export async function GET() {
         deadlineMessage,
         resumeUrl: resumeStorageKey ? `/api/student/applications/${application.id}/resume` : null,
       };
-    }) });
+    }) }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Could not load the student's applications.", error);
     return NextResponse.json({ error: "Your applications are temporarily unavailable. Please try again." }, { status: 503 });

@@ -47,7 +47,7 @@ export async function GET(request: Request) {
       },
     });
 
-    return NextResponse.json({ applications, internships });
+    return NextResponse.json({ applications, internships }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Could not load applications for administrative review.", error);
     return NextResponse.json({ error: "Applications are temporarily unavailable. Please try again." }, { status: 503 });

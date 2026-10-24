@@ -66,7 +66,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
       eligibilityChecks: eligibilityChecks(context.student, context.internship),
       student: { name: context.student.name, email: context.student.email, branch: context.student.branch, cgpa: context.student.cgpa, skills: context.student.skills.split("\n").filter(Boolean) },
       profileResumeAvailable: false,
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Could not check internship application availability.", error);
     return NextResponse.json({ error: "Application availability is temporarily unavailable. Please try again." }, { status: 503 });
@@ -105,7 +105,10 @@ export async function POST(request: Request, { params }: RouteContext) {
       data: { studentId: session.userId, internshipId, status: "Pending", resumeStorageKey: resumeKey },
       select: { id: true, status: true, appliedAt: true },
     });
-    return NextResponse.json({ application, resumeUrl: resumeKey ? `/api/student/applications/${application.id}/resume` : null }, { status: 201 });
+    return NextResponse.json(
+      { application, resumeUrl: resumeKey ? `/api/student/applications/${application.id}/resume` : null },
+      { status: 201, headers: { "Cache-Control": "private, no-store" } },
+    );
   } catch (error) {
     if (resumeKey) await deleteResume(resumeKey);
     if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {

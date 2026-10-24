@@ -9,16 +9,21 @@ export async function GET(_request: Request, { params }: RouteContext) {
   const session = await getServerSession();
   if (!session) return NextResponse.json({ error: "Sign in to access this resume." }, { status: 401 });
   const { applicationId } = await params;
+  if (!/^\d+$/.test(applicationId)) return NextResponse.json({ error: "Resume not found." }, { status: 404 });
   const id = Number(applicationId);
   if (!Number.isSafeInteger(id) || id < 1) return NextResponse.json({ error: "Resume not found." }, { status: 404 });
 
+  const isAdmin = session.role === "admin" || session.role === "super-admin";
+  if (!isAdmin && session.role !== "student") {
+    return NextResponse.json({ error: "Resume not found." }, { status: 404 });
+  }
+
   try {
-    const application = await prisma.application.findUnique({ where: { id }, select: { studentId: true, resumeStorageKey: true } });
+    const application = await prisma.application.findFirst({
+      where: { id, ...(isAdmin ? {} : { studentId: session.userId }) },
+      select: { resumeStorageKey: true },
+    });
     if (!application || !application.resumeStorageKey) return NextResponse.json({ error: "Resume not found." }, { status: 404 });
-    const isAdmin = session.role === "admin" || session.role === "super-admin";
-    if (!isAdmin && (session.role !== "student" || session.userId !== application.studentId)) {
-      return NextResponse.json({ error: "You are not allowed to access this resume." }, { status: 403 });
-    }
     const file = await readResume(application.resumeStorageKey);
     return new Response(new Uint8Array(file), {
       headers: {

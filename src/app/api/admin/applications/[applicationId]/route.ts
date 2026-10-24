@@ -45,7 +45,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       data: { status },
       select: { id: true, status: true },
     });
-    return NextResponse.json({ application });
+    return NextResponse.json({ application }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     if (isMissingRecord(error)) return NextResponse.json({ error: "Application not found." }, { status: 404 });
     console.error("Could not update application status.", error);
