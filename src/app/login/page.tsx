@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { SubmitEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AUTH_STORAGE_KEY, authAccounts, getAccount } from "@/lib/auth";
 
@@ -17,7 +17,7 @@ export default function LoginPage() {
     if (account) router.replace(account.route);
   }, [router]);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!email.trim() || !password) { setError("Enter your email and password to continue."); return; }
     const account = getAccount(email, password);
