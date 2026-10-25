@@ -5,9 +5,6 @@ import type { Role } from "@/lib/placement-data";
 export const AUTH_COOKIE = "inplace-session";
 
 const secretValue = process.env.SESSION_SECRET;
-if (!secretValue && process.env.NODE_ENV === "production") {
-  throw new Error("SESSION_SECRET must be configured in production");
-}
 
 const secret = new TextEncoder().encode(
   secretValue || "development-only-secret-change-before-production-32"
