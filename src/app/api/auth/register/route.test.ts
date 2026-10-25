@@ -29,15 +29,32 @@ vi.mock("bcrypt", () => ({
   },
 }));
 
+
+vi.mock("@/lib/resume-storage", () => ({
+  saveResume: vi.fn().mockResolvedValue("uploads/resumes/test.pdf"),
+  deleteResume: vi.fn().mockResolvedValue(undefined),
+  ResumeUploadError: class ResumeUploadError extends Error {},
+}));
+
+import { saveResume } from "@/lib/resume-storage";
+
+
 import { POST } from "./route";
 
-function makeRequest(body: unknown): Request {
+
+function makeRequest(body: Record<string, unknown>): Request {
+  const form = new FormData();
+
+  for (const [key, value] of Object.entries(body)) {
+    form.append(key, String(value));
+  }
+
   return new Request("http://localhost/api/auth/register", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: form,
   });
 }
+
 
 const validStudent = {
   name: "Test Student",
@@ -77,21 +94,7 @@ describe("POST /api/auth/register", () => {
     expect(findUser).not.toHaveBeenCalled();
   });
 
-  it("returns 400 for malformed JSON", async () => {
-    const request = new Request(
-      "http://localhost/api/auth/register",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: "{invalid-json",
-      }
-    );
-
-    const response = await POST(request);
-
-    expect(response.status).toBe(400);
-  });
-
+  
   it("rejects public super-admin registration", async () => {
     const response = await POST(
       makeRequest({
@@ -164,6 +167,7 @@ describe("POST /api/auth/register", () => {
     const result = await response.json();
 
     expect(response.status).toBe(201);
+    expect(saveResume).not.toHaveBeenCalled();
     expect(result.message).toContain("Student account created");
 
     expect(hashPassword).toHaveBeenCalledWith(
@@ -237,4 +241,82 @@ describe("POST /api/auth/register", () => {
 
     expect(response.status).toBe(409);
   });
+
+  
+it("saves an uploaded PDF and stores its path in the student profile", async () => {
+  const form = new FormData();
+
+  for (const [key, value] of Object.entries(validStudent)) {
+    form.append(key, value);
+  }
+
+  const pdf = new File(
+    ["%PDF-1.4\nmock PDF content"],
+    "resume.pdf",
+    { type: "application/pdf" }
+  );
+
+  form.append("resume", pdf);
+
+  vi.mocked(saveResume).mockResolvedValueOnce(
+  "uploads/resumes/test.pdf"
+ );
+
+  const response = await POST(
+    new Request("http://localhost/api/auth/register", {
+      method: "POST",
+      body: form,
+    })
+  );
+
+  expect(response.status).toBe(201);
+  expect(saveResume).toHaveBeenCalledWith(pdf);
+
+  expect(createUser).toHaveBeenCalledWith(
+    expect.objectContaining({
+      data: expect.objectContaining({
+        studentProfile: {
+          create: expect.objectContaining({
+            resumePath: "uploads/resumes/test.pdf",
+          }),
+        },
+      }),
+    })
+  );
+});
+
+it("rejects an oversized resume", async () => {
+  const { ResumeUploadError } = await import("@/lib/resume-storage");
+
+  vi.mocked(saveResume).mockRejectedValueOnce(
+    new ResumeUploadError("Resume must be between 1 byte and 5 MB.")
+  );
+
+  const form = new FormData();
+
+  for (const [key, value] of Object.entries(validStudent)) {
+    form.append(key, value);
+  }
+
+  form.append(
+    "resume",
+    new File(["mock PDF"], "resume.pdf", { type: "application/pdf" })
+  );
+
+  
+  
+  const response = await POST(
+    new Request("http://localhost/api/auth/register", {
+      method: "POST",
+      body: form,
+    })
+  );
+
+  expect(response.status).toBe(400);
+  expect(createUser).not.toHaveBeenCalled();
+});
+
+
+
+
 });

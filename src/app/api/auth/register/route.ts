@@ -2,40 +2,38 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcrypt";
 import { prisma } from "@/lib/prisma";
-
-
-
-type RegistrationBody = {
-  name?: string;
-  email?: string;
-  password?: string;
-  accountType?: string;
-  branch?: string;
-  cgpa?: string | number;
-  year?: string | number;
-  skills?: string;
-};
+import {
+  saveResume,
+  deleteResume,
+  ResumeUploadError,
+} from "@/lib/resume-storage";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
+  let savedResumePath: string | undefined;
+
   try {
-    
-    let body: RegistrationBody;
+    let form: FormData;
 
     try {
-    body = (await request.json()) as RegistrationBody;
+      form = await request.formData();
     } catch {
-    return NextResponse.json(
-        { error: "Invalid JSON request body." },
+      return NextResponse.json(
+        { error: "Invalid registration form." },
         { status: 400 }
-    );
+      );
+    }
+
+    const getText = (key: string): string => {
+      const value = form.get(key);
+      return typeof value === "string" ? value : "";
     };
 
-    const name = body.name?.trim();
-    const email = body.email?.trim().toLowerCase();
-    const password = body.password;
-    const accountType = body.accountType;
+    const name = getText("name").trim();
+    const email = getText("email").trim().toLowerCase();
+    const password = getText("password");
+    const accountType = getText("accountType");
 
     if (!name || name.length > 150 || !email || !password) {
       return NextResponse.json(
@@ -53,12 +51,11 @@ export async function POST(request: Request) {
 
     if (password.length < 8 || password.length > 72) {
       return NextResponse.json(
-        { error: "Password must contain 8–72 characters." },
+        { error: "Password must contain 8-72 characters." },
         { status: 400 }
       );
     }
 
-    // Never allow public registration to create a super-admin.
     if (accountType !== "student" && accountType !== "admin") {
       return NextResponse.json(
         { error: "Invalid account type. Super-admin registration is restricted." },
@@ -66,14 +63,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    const existingRequest =
-      await prisma.accountCreationRequest.findUnique({
-        where: { email },
-      });
+    const [existingUser, existingRequest] = await Promise.all([
+      prisma.user.findUnique({ where: { email } }),
+      prisma.accountCreationRequest.findUnique({ where: { email } }),
+    ]);
 
     if (existingUser || existingRequest) {
       return NextResponse.json(
@@ -97,17 +90,17 @@ export async function POST(request: Request) {
 
       return NextResponse.json(
         {
-          message:
-            "Admin approval request submitted successfully. Wait for super-admin approval.",
+          message: "Admin approval request submitted successfully. Wait for super-admin approval.",
         },
         { status: 201 }
       );
     }
 
-    const branch = body.branch?.trim();
-    const cgpa = Number(body.cgpa);
-    const yearOfStudy = Number(body.year);
-    const skills = (body.skills ?? "")
+    const branch = getText("branch").trim();
+    const cgpaText = getText("cgpa");
+    const cgpa = Number(cgpaText);
+    const yearOfStudy = Number(getText("year"));
+    const skills = getText("skills")
       .split(",")
       .map((skill) => skill.trim())
       .filter(Boolean);
@@ -115,8 +108,7 @@ export async function POST(request: Request) {
     if (
       !branch ||
       branch.length > 150 ||
-      body.cgpa === "" ||
-      body.cgpa === undefined ||
+      !cgpaText ||
       !Number.isFinite(cgpa) ||
       cgpa < 0 ||
       cgpa > 10 ||
@@ -132,6 +124,19 @@ export async function POST(request: Request) {
       );
     }
 
+    const resumeEntry = form.get("resume");
+
+    if (resumeEntry && !(resumeEntry instanceof File)) {
+      return NextResponse.json(
+        { error: "Invalid resume upload." },
+        { status: 400 }
+      );
+    }
+
+    if (resumeEntry instanceof File && resumeEntry.size > 0) {
+      savedResumePath = await saveResume(resumeEntry);
+    }
+
     await prisma.user.create({
       data: {
         name,
@@ -144,19 +149,25 @@ export async function POST(request: Request) {
             cgpa,
             yearOfStudy,
             skills,
+            ...(savedResumePath ? { resumePath: savedResumePath } : {}),
           },
         },
       },
     });
 
     return NextResponse.json(
-      {
-        message:
-          "Student account created successfully. You can now sign in.",
-      },
+      { message: "Student account created successfully. You can now sign in." },
       { status: 201 }
     );
   } catch (error: unknown) {
+    if (savedResumePath) {
+      await deleteResume(savedResumePath);
+    }
+
+    if (error instanceof ResumeUploadError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
     if (
       typeof error === "object" &&
       error !== null &&

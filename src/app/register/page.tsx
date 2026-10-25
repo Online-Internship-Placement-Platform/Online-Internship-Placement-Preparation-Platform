@@ -62,7 +62,7 @@ async function submit(event: FormEvent<HTMLFormElement>) {
       grade > 10 ||
       !Number.isInteger(studyYear) ||
       studyYear < 1 ||
-      studyYear > 5
+      studyYear > 4
     ) {
       setError("Enter a valid branch, year of study and CGPA between 0 and 10.");
       return;
@@ -86,21 +86,31 @@ async function submit(event: FormEvent<HTMLFormElement>) {
   setMessage("Submitting registration...");
 
   try {
+    
+    const formData = new FormData();
+
+    formData.append("name", name);
+    formData.append("email", email);
+    formData.append("password", password);
+    formData.append("accountType", accountType);
+
+    if (accountType === "student") {
+      formData.append("branch", branch);
+      formData.append("cgpa", cgpa);
+      formData.append("year", year);
+      formData.append("skills", skills);
+
+      if (resume) {
+        formData.append("resume", resume);
+      }
+    }
+
     const response = await fetch("/api/auth/register", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        email,
-        password,
-        accountType,
-        branch,
-        cgpa,
-        year,
-        skills,
-      }),
+      body: formData,
     });
 
+    
     const result = (await response.json()) as {
       message?: string;
       error?: string;
