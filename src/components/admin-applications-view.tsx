@@ -8,8 +8,9 @@ type AdminApplication = {
   id: number;
   status: string;
   appliedAt: string;
-  student: { name: string | null };
+  student: { name: string | null; skills: string[] };
   internship: { id: string; company: string; role: string };
+  resumeUrl: string | null;
 };
 
 type InternshipOption = { id: string; company: string; role: string };
@@ -149,13 +150,14 @@ export default function AdminApplicationsView({ role = "admin" }: { role?: "admi
             <p className="text-sm font-semibold text-[#344238]">{hasFilters ? "No applications match these filters." : "No applications have been submitted yet."}</p>
             <p className="mt-1 text-xs text-[#7b857c]">{hasFilters ? "Adjust or clear your filters to see more results." : "Submitted student applications will appear here."}</p>
           </div>
-            : <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left">
-              <thead className="border-b border-[#edf0ec] bg-[#fafbf9] text-[10px] uppercase tracking-[0.12em] text-[#89948b]"><tr><th className="px-5 py-3">Student</th><th className="px-5 py-3">Internship</th><th className="px-5 py-3">Applied on</th><th className="px-5 py-3">Status</th><th className="px-5 py-3">Update</th></tr></thead>
+            : <div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left">
+              <thead className="border-b border-[#edf0ec] bg-[#fafbf9] text-[10px] uppercase tracking-[0.12em] text-[#89948b]"><tr><th className="px-5 py-3">Student</th><th className="px-5 py-3">Internship</th><th className="px-5 py-3">Applied on</th><th className="px-5 py-3">Status</th><th className="px-5 py-3">Resume</th><th className="px-5 py-3">Update</th></tr></thead>
               <tbody>{applications.map((application) => <tr className="border-b border-[#edf0ec] last:border-0" key={application.id}>
-                <td className="px-5 py-4 text-sm font-semibold">{application.student.name?.trim() || "Name not provided"}</td>
+                <td className="px-5 py-4"><div className="text-sm font-semibold">{application.student.name?.trim() || "Name not provided"}</div><div className="mt-2 flex max-w-[260px] flex-wrap gap-1.5">{application.student.skills.length ? application.student.skills.map((skill) => <span key={skill} className="rounded-md bg-[#f1f3ef] px-2 py-1 text-[10px] font-medium text-[#526057]">{skill}</span>) : <span className="text-xs font-normal text-[#89948b]">No skills added</span>}</div></td>
                 <td className="px-5 py-4 text-sm"><div className="font-medium text-[#344238]">{application.internship.role}</div><div className="mt-1 text-xs text-[#7b857c]">{application.internship.company}</div></td>
                 <td className="px-5 py-4 text-xs text-[#6e786f]">{new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric" }).format(new Date(application.appliedAt))}</td>
                 <td className="px-5 py-4"><StatusBadge status={application.status || "Unknown"} /></td>
+                <td className="px-5 py-4 text-xs">{application.resumeUrl ? <a href={application.resumeUrl} className="font-semibold text-[#176b50] hover:underline">Download resume</a> : <span className="text-[#89948b]">Resume not uploaded</span>}</td>
                 <td className="px-5 py-4"><div className="flex items-center gap-2">
                   <label className="sr-only" htmlFor={`application-status-${application.id}`}>New status for {application.student.name || "student application"}</label>
                   <select

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAccount } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { setServerSession } from "@/lib/server-session";
+import { validateStudentProfile } from "@/modules/students/profile-validation";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -24,8 +25,12 @@ export async function POST(request: Request) {
 
   try {
     const studentProfile = account.role === "student"
-      ? { name: "Aarav Mehta", branch: "Computer Science", cgpa: 8.6, skills: ["React", "TypeScript", "SQL", "Figma"].join("\n") }
+      ? { name: "Aarav Mehta", branch: "Computer Science", cgpa: 8.6, year: 3, skills: ["React", "TypeScript", "SQL", "Figma"].join("\n") }
       : {};
+    if (account.role === "student") {
+      const validationError = validateStudentProfile(studentProfile, "create");
+      if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
+    }
     const user = await prisma.user.upsert({
       where: { email: account.email },
       update: { role: account.role },

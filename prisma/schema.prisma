@@ -15,10 +15,12 @@ datasource db {
 model User {
   id           Int           @id @default(autoincrement())
   email        String        @unique
+  // Student profile fields remain nullable so administrator rows can omit them.
   name         String?
   role         String        @default("student")
   branch       String?
   cgpa         Float?
+  year         Int?
   skills       String        @default("") @db.VarChar(2048)
   posts        Post[]
   applications Application[]

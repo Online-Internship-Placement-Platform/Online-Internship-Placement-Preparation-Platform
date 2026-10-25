@@ -24,8 +24,8 @@ async function main() {
   const studentSkills = ["React", "TypeScript", "SQL", "Figma"];
   await prisma.user.upsert({
     where: { email: "student@gmail.com" },
-    update: { name: "Aarav Mehta", role: "student", branch: "Computer Science", cgpa: 8.6, skills: studentSkills.join("\n") },
-    create: { email: "student@gmail.com", name: "Aarav Mehta", role: "student", branch: "Computer Science", cgpa: 8.6, skills: studentSkills.join("\n") },
+    update: { name: "Aarav Mehta", role: "student", branch: "Computer Science", cgpa: 8.6, year: 3, skills: studentSkills.join("\n") },
+    create: { email: "student@gmail.com", name: "Aarav Mehta", role: "student", branch: "Computer Science", cgpa: 8.6, year: 3, skills: studentSkills.join("\n") },
   });
 
   for (const internship of internships) {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "@/lib/server-session";
+import { validateStudentProfile } from "@/modules/students/profile-validation";
 
 function normalizeSkills(value: unknown): string[] | null {
   if (!Array.isArray(value) || value.length > 50 || !value.every((skill) =>
@@ -24,7 +25,7 @@ export async function GET() {
   try {
     const student = await prisma.user.findUnique({
       where: { id: session.userId },
-      select: { id: true, role: true, name: true, email: true, branch: true, cgpa: true, skills: true },
+      select: { id: true, role: true, name: true, email: true, branch: true, cgpa: true, year: true, skills: true },
     });
     if (!student || student.role !== "student") return NextResponse.json({ error: "Student profile not found." }, { status: 404 });
     return NextResponse.json({ profile: { ...student, skills: student.skills.split("\n").filter(Boolean) } });
@@ -43,25 +44,41 @@ export async function PATCH(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Provide a valid skills list." }, { status: 400 });
+    return NextResponse.json({ error: "Provide valid profile fields." }, { status: 400 });
   }
-  if (typeof body !== "object" || body === null || !("skills" in body)) {
-    return NextResponse.json({ error: "Provide a valid skills list." }, { status: 400 });
+  if (typeof body !== "object" || body === null) {
+    return NextResponse.json({ error: "Provide profile fields to update." }, { status: 400 });
   }
-  const skills = normalizeSkills((body as { skills: unknown }).skills);
-  if (skills === null) return NextResponse.json({ error: "Skills must be a list of up to 50 names, each 1–40 characters." }, { status: 400 });
+  const values = body as Record<string, unknown>;
+  const profileValues = Object.fromEntries(["name", "branch", "cgpa", "year"]
+    .filter((field) => Object.hasOwn(values, field))
+    .map((field) => [field, values[field]]));
+  const hasSkills = Object.hasOwn(values, "skills");
+  if (Object.keys(profileValues).length === 0 && !hasSkills) {
+    return NextResponse.json({ error: "Provide profile fields to update." }, { status: 400 });
+  }
+  const profileError = validateStudentProfile(profileValues, "update");
+  if (profileError) return NextResponse.json({ error: profileError }, { status: 400 });
+  const skills = hasSkills ? normalizeSkills(values.skills) : undefined;
+  if (hasSkills && skills === null) return NextResponse.json({ error: "Skills must be a list of up to 50 names, each 1–40 characters." }, { status: 400 });
 
   try {
     const student = await prisma.user.findUnique({ where: { id: session.userId }, select: { id: true, role: true } });
     if (!student || student.role !== "student") return NextResponse.json({ error: "Student profile not found." }, { status: 404 });
+    const updateData: { name?: string; branch?: string; cgpa?: number; year?: number; skills?: string } = {};
+    if (Object.hasOwn(profileValues, "name")) updateData.name = profileValues.name as string;
+    if (Object.hasOwn(profileValues, "branch")) updateData.branch = profileValues.branch as string;
+    if (Object.hasOwn(profileValues, "cgpa")) updateData.cgpa = profileValues.cgpa as number;
+    if (Object.hasOwn(profileValues, "year")) updateData.year = profileValues.year as number;
+    if (skills) updateData.skills = skills.join("\n");
     const updated = await prisma.user.update({
       where: { id: session.userId },
-      data: { skills: skills.join("\n") },
-      select: { skills: true },
+      data: updateData,
+      select: { name: true, branch: true, cgpa: true, year: true, skills: true },
     });
-    return NextResponse.json({ skills: updated.skills.split("\n").filter(Boolean) });
+    return NextResponse.json({ ...updated, skills: updated.skills.split("\n").filter(Boolean) });
   } catch (error) {
-    console.error("Could not update student profile skills.", error);
-    return NextResponse.json({ error: "Your skills could not be saved. Please try again." }, { status: 503 });
+    console.error("Could not update the student profile.", error);
+    return NextResponse.json({ error: "Your profile could not be saved. Please try again." }, { status: 503 });
   }
 }
