@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "seed:demo": "tsx prisma/seed.ts",
+    "initialize:demo-passwords": "tsx prisma/initialize-demo-passwords.ts",
     "start": "next start",
     "lint": "eslint"
   },

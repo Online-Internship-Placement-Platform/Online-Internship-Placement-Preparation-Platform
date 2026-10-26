@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { AppShell, SectionHeading, StatusBadge } from "@/components/app-shell";
 import { getServerSession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 
-const profileFields = ["name", "email", "branch", "cgpa", "year", "skills"] as const;
+const profileFields = ["name", "email", "branch", "cgpa", "yearOfStudy", "skills"] as const;
 const today = () => {
   const date = new Date();
   date.setHours(0, 0, 0, 0);
@@ -12,14 +13,14 @@ const today = () => {
 const formatDate = (date: Date) => new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric" }).format(date);
 
 export default async function StudentDashboard() {
+  await connection();
   const session = await getServerSession();
   if (!session || session.role !== "student") {
     return <AppShell title="Student dashboard" eyebrow="Student workspace"><p role="alert" className="text-sm text-[#6e786f]">Your student session could not be verified. Please sign in again.</p></AppShell>;
   }
 
-  try {
-    const [student, applications, internships] = await Promise.all([
-      prisma.user.findUnique({ where: { id: session.userId }, select: { id: true, role: true, name: true, email: true, branch: true, cgpa: true, year: true, skills: true } }),
+  const dashboardData = await Promise.all([
+      prisma.user.findUnique({ where: { id: session.userId }, select: { id: true, role: true, name: true, email: true, studentProfile: { select: { branch: true, cgpa: true, yearOfStudy: true, skills: true } } } }),
       prisma.application.findMany({
         where: { studentId: session.userId }, orderBy: { appliedAt: "desc" },
         select: { id: true, status: true, appliedAt: true, internship: { select: { role: true, company: true } } },
@@ -28,17 +29,24 @@ export default async function StudentDashboard() {
         where: { published: true, applicationDeadline: { gte: today() } }, orderBy: { applicationDeadline: "asc" }, take: 3,
         select: { id: true, role: true, company: true, applicationDeadline: true, requiredSkills: true },
       }),
-    ]);
-    if (!student || student.role !== "student") throw new Error("Student profile not found");
+    ]).catch((error: unknown) => {
+      console.error("Could not load the student dashboard.", error);
+      return null;
+    });
+  if (!dashboardData) return <AppShell title="Student dashboard" eyebrow="Student workspace"><p role="alert" className="rounded-xl border border-[#e2e7e1] bg-white p-5 text-sm text-[#6e786f]">Your dashboard is temporarily unavailable. Please refresh and try again.</p></AppShell>;
+  const [student, applications, internships] = dashboardData;
+  if (!student || student.role !== "STUDENT" || !student.studentProfile) {
+    return <AppShell title="Student dashboard" eyebrow="Student workspace"><p role="alert" className="rounded-xl border border-[#e2e7e1] bg-white p-5 text-sm text-[#6e786f]">Your dashboard is temporarily unavailable. Please refresh and try again.</p></AppShell>;
+  }
 
-    const skills = student.skills.split("\n").map((skill) => skill.trim()).filter(Boolean);
-    const completed = [student.name, student.email, student.branch, student.cgpa, student.year, skills.length ? skills : null].filter((field) => field !== null && field !== undefined && field !== "").length;
+    const skills = Array.isArray(student.studentProfile.skills) ? student.studentProfile.skills.filter((skill): skill is string => typeof skill === "string") : [];
+    const completed = [student.name, student.email, student.studentProfile.branch, student.studentProfile.cgpa, student.studentProfile.yearOfStudy, skills.length ? skills : null].filter((field) => field !== null && field !== undefined && field !== "").length;
     const completion = Math.round(completed / profileFields.length * 100);
     const outstanding = profileFields.length - completed;
     const firstName = student.name?.trim().split(/\s+/)[0] || "there";
     const shortlisted = applications.filter((application) => application.status.toLowerCase() === "shortlisted").length;
 
-    return <AppShell title={`Good morning, ${firstName}`} eyebrow="Student workspace" identityName={student.name || student.email}>
+  return <AppShell title={`Good morning, ${firstName}`} eyebrow="Student workspace" identityName={student.name || student.email}>
       <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><p className="max-w-xl text-sm leading-6 text-[#6e786f]">Keep your profile sharp and stay ahead of the next placement opportunity.</p></div><Link href="/student/internships" className="inline-flex w-fit items-center rounded-lg bg-[#176b50] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#12563f]">Browse internships <span className="ml-3">→</span></Link></div>
       <div className="mb-8 grid gap-4 md:grid-cols-3">
         <Link href="/student/profile" className="rounded-xl border border-[#e2e7e1] bg-white p-5 transition-shadow hover:shadow-md"><Metric label="Profile completion" value={`${completion}%`} note={`${outstanding} ${outstanding === 1 ? "field" : "fields"} to complete`} progress={completion} /></Link>
@@ -51,11 +59,7 @@ export default async function StudentDashboard() {
       <section className="mt-8"><SectionHeading title="Deadlines worth noting" action={<Link href="/student/internships" className="text-xs font-semibold text-[#176b50]">Explore directory →</Link>} />
         {internships.length ? <div className="grid gap-4 md:grid-cols-3">{internships.map((item) => <Link href={`/student/internships/${item.id}`} key={item.id} className="rounded-xl border border-[#e2e7e1] bg-white p-5 transition-shadow hover:shadow-md"><div className="mb-6 flex items-start justify-between"><span className="rounded-md bg-[#f1f3ef] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[#69736b]">Internship</span><span className="text-xs font-semibold text-[#a86618]">{formatDate(item.applicationDeadline)}</span></div><div className="text-sm font-semibold">{item.role}</div><div className="mt-1 text-xs text-[#7b857c]">{item.company}</div><div className="mt-5 flex flex-wrap gap-1.5">{item.requiredSkills.split(",").map((skill) => skill.trim()).filter(Boolean).slice(0, 3).map((skill) => <span className="rounded border border-[#e2e7e1] px-2 py-1 text-[10px] text-[#6e786f]" key={skill}>{skill}</span>)}</div></Link>)}</div> : <EmptyState>There are no published internships with upcoming deadlines.</EmptyState>}
       </section>
-    </AppShell>;
-  } catch (error) {
-    console.error("Could not load the student dashboard.", error);
-    return <AppShell title="Student dashboard" eyebrow="Student workspace"><p role="alert" className="rounded-xl border border-[#e2e7e1] bg-white p-5 text-sm text-[#6e786f]">Your dashboard is temporarily unavailable. Please refresh and try again.</p></AppShell>;
-  }
+  </AppShell>;
 }
 
 function Metric({ label, value, note, progress }: { label: string; value: string; note: string; progress?: number }) {

@@ -12,18 +12,42 @@ datasource db {
   provider = "mysql"
 }
 
+enum Role {
+  STUDENT     @map("student")
+  ADMIN       @map("admin")
+  SUPER_ADMIN @map("super-admin")
+}
+
+enum YearOfStudy {
+  FIRST
+  SECOND
+  THIRD
+  FOURTH
+}
+
 model User {
-  id           Int           @id @default(autoincrement())
-  email        String        @unique
-  // Student profile fields remain nullable so administrator rows can omit them.
-  name         String?
-  role         String        @default("student")
-  branch       String?
-  cgpa         Float?
-  year         Int?
-  skills       String        @default("") @db.VarChar(2048)
-  posts        Post[]
-  applications Application[]
+  id             Int             @id @default(autoincrement())
+  name           String?         @db.VarChar(150)
+  email          String          @unique @db.VarChar(255)
+  // Legacy accounts remain nullable until a password has been securely provisioned.
+  passwordHash   String?         @db.VarChar(255)
+  role           Role            @default(STUDENT)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  studentProfile StudentProfile?
+  posts          Post[]
+  applications   Application[]
+}
+
+model StudentProfile {
+  id          Int         @id @default(autoincrement())
+  userId      Int         @unique
+  branch      String      @db.VarChar(150)
+  cgpa        Float
+  yearOfStudy YearOfStudy
+  skills      Json
+  resumePath  String?     @db.VarChar(500)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Post {
@@ -44,19 +68,19 @@ model Internship {
   acceptingApplications Boolean       @default(false)
   minCgpa               Float         @default(0)
   eligibleBranches      String        @db.Text
-  requiredSkills         String        @default("") @db.VarChar(2048)
+  requiredSkills        String        @default("") @db.VarChar(2048)
   applications          Application[]
 }
 
 model Application {
-  id           Int        @id @default(autoincrement())
-  studentId    Int
-  internshipId String
-  status       String     @default("Pending")
-  appliedAt    DateTime   @default(now())
+  id               Int        @id @default(autoincrement())
+  studentId        Int
+  internshipId     String
+  status           String     @default("Pending")
+  appliedAt        DateTime   @default(now())
   resumeStorageKey String?
-  student      User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  internship   Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+  student          User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  internship       Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, internshipId])
   @@index([internshipId])

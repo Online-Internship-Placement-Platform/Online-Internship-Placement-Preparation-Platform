@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/server-session";
 import { isApplicationStudentRole } from "@/modules/applications/application-authorization";
 import { isUniqueApplicationError, createStudentApplication, getApplicationContext } from "@/modules/applications/application-service";
+import { isInternshipOpenForApplications } from "@/modules/applications/eligibility";
 
 type RouteContext = { params: Promise<{ internshipId: string }> };
 
@@ -16,7 +17,11 @@ export async function GET(_request: Request, { params }: RouteContext) {
     if (context.kind === "internship-not-found") return NextResponse.json({ error: "This internship could not be found." }, { status: 404 });
     if (context.kind === "student-not-found") return NextResponse.json({ error: "Your student account could not be verified." }, { status: 403 });
 
-    const isOpen = context.internship.published && context.internship.acceptingApplications;
+    const isOpen = isInternshipOpenForApplications(
+      context.internship.published,
+      context.internship.acceptingApplications,
+      context.internship.applicationDeadline.toISOString().slice(0, 10),
+    );
     const alreadyApplied = Boolean(context.application);
     const canApply = isOpen && !alreadyApplied && context.eligibility.eligible;
     return NextResponse.json({
@@ -35,9 +40,9 @@ export async function GET(_request: Request, { params }: RouteContext) {
       student: {
         name: context.student.name,
         email: context.student.email,
-        branch: context.student.branch,
-        cgpa: context.student.cgpa,
-        skills: context.student.skills.split("\n").filter(Boolean),
+        branch: context.student.studentProfile?.branch ?? null,
+        cgpa: context.student.studentProfile?.cgpa ?? null,
+        skills: Array.isArray(context.student.studentProfile?.skills) ? context.student.studentProfile.skills : [],
       },
       profileResumeAvailable: false,
     }, { headers: { "Cache-Control": "private, no-store" } });

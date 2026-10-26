@@ -62,6 +62,20 @@ function parseDeadline(value: string | Date): Date | null {
   return Number.isNaN(deadline.getTime()) ? null : deadline;
 }
 
+export function isApplicationDeadlineOpen(deadlineValue: string | Date, now: Date = new Date()): boolean {
+  const deadline = parseDeadline(deadlineValue);
+  return deadline !== null && now instanceof Date && !Number.isNaN(now.getTime()) && now.getTime() <= deadline.getTime();
+}
+
+export function isInternshipOpenForApplications(
+  published: boolean,
+  acceptingApplications: boolean,
+  deadline: string | Date,
+  now: Date = new Date(),
+): boolean {
+  return published && acceptingApplications && isApplicationDeadlineOpen(deadline, now);
+}
+
 /** Checks a student's profile against an internship's eligibility requirements. */
 export function checkEligibility(
   student: StudentEligibilityProfile,
@@ -117,7 +131,7 @@ export function getEligibilityChecks(
   if (deadline === null) deadlineReasons.push("Application deadline is invalid.");
   if (!(now instanceof Date) || Number.isNaN(now.getTime())) {
     deadlineReasons.push("Current date/time is invalid.");
-  } else if (deadline !== null && now.getTime() > deadline.getTime()) {
+  } else if (deadline !== null && !isApplicationDeadlineOpen(deadline, now)) {
     deadlineReasons.push("Application deadline has passed.");
   }
   checks.push({ criterion: "Deadline", eligible: deadlineReasons.length === 0, reasons: deadlineReasons });

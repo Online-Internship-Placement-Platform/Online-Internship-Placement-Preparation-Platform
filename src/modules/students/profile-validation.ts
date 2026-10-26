@@ -1,4 +1,4 @@
-const academicYearValues = [1, 2, 3, 4] as const;
+export const academicYearValues = ["FIRST", "SECOND", "THIRD", "FOURTH"] as const;
 
 type ValidationMode = "create" | "update";
 
@@ -6,7 +6,7 @@ export function validateStudentProfile(
   values: Record<string, unknown>,
   mode: ValidationMode,
 ): string | null {
-  const fields = ["name", "branch", "cgpa", "year"] as const;
+  const fields = ["name", "branch", "cgpa", "yearOfStudy"] as const;
 
   for (const field of fields) {
     const supplied = Object.hasOwn(values, field);
@@ -22,8 +22,8 @@ export function validateStudentProfile(
       if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 10) {
         return "CGPA must be a number from 0 to 10.";
       }
-    } else if (typeof value !== "number" || !Number.isInteger(value) || !academicYearValues.includes(value as (typeof academicYearValues)[number])) {
-      return "Academic year must be an integer from 1 to 4.";
+    } else if (typeof value !== "string" || !academicYearValues.includes(value as (typeof academicYearValues)[number])) {
+      return "Academic year must be FIRST, SECOND, THIRD, or FOURTH.";
     }
   }
 

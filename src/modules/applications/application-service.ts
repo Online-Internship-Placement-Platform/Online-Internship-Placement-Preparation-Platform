@@ -1,16 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { deleteResume, storeResume, validateResume } from "@/lib/private-resume-storage";
+import { applicationResumeFilter } from "@/modules/applications/application-access";
 import type { AdminApplicationFilters } from "@/modules/applications/application-validation";
 import { checkEligibility, getEligibilityChecks } from "@/modules/applications/eligibility";
 
 type StudentProfile = {
   id: number;
-  role: string;
+  role: "STUDENT" | "ADMIN" | "SUPER_ADMIN";
   name: string | null;
   email: string;
-  branch: string | null;
-  cgpa: number | null;
-  skills: string;
+  studentProfile: { branch: string; cgpa: number; skills: unknown; yearOfStudy: "FIRST" | "SECOND" | "THIRD" | "FOURTH" } | null;
 };
 
 type InternshipRequirements = {
@@ -26,10 +25,11 @@ type InternshipRequirements = {
 };
 
 function eligibilityProfile(student: StudentProfile) {
+  const profile = student.studentProfile;
   return {
-    branch: student.branch ?? "",
-    cgpa: student.cgpa ?? Number.NaN,
-    skills: student.skills.split("\n").filter(Boolean),
+    branch: profile?.branch ?? "",
+    cgpa: profile?.cgpa ?? Number.NaN,
+    skills: Array.isArray(profile?.skills) && profile.skills.every((skill) => typeof skill === "string") ? profile.skills : [],
   };
 }
 
@@ -53,7 +53,7 @@ export async function getApplicationContext(internshipId: string, userId: number
     }),
     prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, role: true, name: true, email: true, branch: true, cgpa: true, skills: true },
+      select: { id: true, role: true, name: true, email: true, studentProfile: { select: { branch: true, cgpa: true, skills: true, yearOfStudy: true } } },
     }),
     prisma.application.findUnique({
       where: { studentId_internshipId: { studentId: userId, internshipId } },
@@ -62,7 +62,7 @@ export async function getApplicationContext(internshipId: string, userId: number
   ]);
 
   if (!internship) return { kind: "internship-not-found" as const };
-  if (!student || student.role !== "student") return { kind: "student-not-found" as const };
+  if (!student || student.role !== "STUDENT" || !student.studentProfile) return { kind: "student-not-found" as const };
 
   const profile = eligibilityProfile(student);
   const requirements = eligibilityRequirements(internship);
@@ -174,7 +174,7 @@ export async function listAdminApplications(filters: AdminApplicationFilters) {
       status: true,
       appliedAt: true,
       resumeStorageKey: true,
-      student: { select: { name: true, skills: true } },
+      student: { select: { name: true, studentProfile: { select: { skills: true } } } },
       internship: { select: { id: true, company: true, role: true } },
     },
   });
@@ -183,7 +183,7 @@ export async function listAdminApplications(filters: AdminApplicationFilters) {
       ...application,
       student: {
         name: student.name,
-        skills: student.skills.split("\n").map((skill) => skill.trim()).filter(Boolean),
+        skills: Array.isArray(student.studentProfile?.skills) ? student.studentProfile.skills.filter((skill): skill is string => typeof skill === "string") : [],
       },
       resumeUrl: resumeStorageKey ? `/api/admin/applications/${application.id}/resume` : null,
     })),
@@ -209,7 +209,7 @@ export async function updateApplicationStatus(id: number, status: string) {
 
 export async function getApplicationResumeKey(id: number, userId: number, isAdmin: boolean) {
   return prisma.application.findFirst({
-    where: { id, ...(isAdmin ? {} : { studentId: userId }) },
+    where: applicationResumeFilter(id, userId, isAdmin),
     select: { resumeStorageKey: true },
   });
 }

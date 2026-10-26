@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { AppShell } from "@/components/app-shell";
 
-type Profile = { name: string | null; email: string; branch: string | null; cgpa: number | null; year: number | null; skills: string[] };
+type Profile = { name: string | null; email: string; branch: string | null; cgpa: number | null; yearOfStudy: "FIRST" | "SECOND" | "THIRD" | "FOURTH"; skills: string[] };
 
 export default function ProfileView() {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -11,7 +11,7 @@ export default function ProfileView() {
   const [name, setName] = useState("");
   const [branch, setBranch] = useState("");
   const [cgpa, setCgpa] = useState("");
-  const [year, setYear] = useState("");
+  const [yearOfStudy, setYearOfStudy] = useState("");
   const [message, setMessage] = useState("");
   const [messageKind, setMessageKind] = useState<"success" | "error">("success");
   const [loading, setLoading] = useState(true);
@@ -27,7 +27,7 @@ export default function ProfileView() {
         setName(result.profile.name ?? "");
         setBranch(result.profile.branch ?? "");
         setCgpa(result.profile.cgpa === null ? "" : String(result.profile.cgpa));
-        setYear(result.profile.year === null ? "" : String(result.profile.year));
+        setYearOfStudy(result.profile.yearOfStudy);
       })
       .catch((error: unknown) => { setMessageKind("error"); setMessage(error instanceof Error ? error.message : "Profile is unavailable."); })
       .finally(() => setLoading(false));
@@ -47,13 +47,13 @@ export default function ProfileView() {
           name,
           branch,
           cgpa: cgpa.trim() ? Number(cgpa) : null,
-          year: year ? Number(year) : null,
+          yearOfStudy,
           skills,
         }),
       });
       const result = await response.json() as Partial<Profile> & { error?: string };
       if (!response.ok || !result.skills) throw new Error(result.error ?? "Skills could not be saved.");
-      setProfile((current) => current ? { ...current, name: result.name ?? current.name, branch: result.branch ?? current.branch, cgpa: result.cgpa ?? current.cgpa, year: result.year ?? current.year, skills: result.skills! } : current);
+      setProfile((current) => current ? { ...current, name: result.name ?? current.name, branch: result.branch ?? current.branch, cgpa: result.cgpa ?? current.cgpa, yearOfStudy: (result.yearOfStudy as Profile["yearOfStudy"]) ?? current.yearOfStudy, skills: result.skills! } : current);
       setSkillsText(result.skills.join(", "));
       setMessage("Profile saved.");
     } catch (error) {
@@ -73,7 +73,7 @@ export default function ProfileView() {
           <Detail label="Email" value={profile.email} />
           <Field label="Branch" value={branch} onChange={setBranch} required />
           <label className="block text-xs font-medium text-[#526057]">CGPA<input type="number" min="0" max="10" step="any" required value={cgpa} onChange={(event) => setCgpa(event.target.value)} className="mt-1.5 w-full rounded-lg border border-[#e2e7e1] px-3 py-2.5 text-sm text-[#17211b] outline-none focus:ring-2 focus:ring-[#176b50]" /></label>
-          <label className="block text-xs font-medium text-[#526057]">Academic year<select required value={year} onChange={(event) => setYear(event.target.value)} className="mt-1.5 w-full rounded-lg border border-[#e2e7e1] px-3 py-2.5 text-sm text-[#17211b] outline-none focus:ring-2 focus:ring-[#176b50]"><option value="">Select year</option><option value="1">Year 1</option><option value="2">Year 2</option><option value="3">Year 3</option><option value="4">Year 4</option></select></label>
+          <label className="block text-xs font-medium text-[#526057]">Academic year<select required value={yearOfStudy} onChange={(event) => setYearOfStudy(event.target.value)} className="mt-1.5 w-full rounded-lg border border-[#e2e7e1] px-3 py-2.5 text-sm text-[#17211b] outline-none focus:ring-2 focus:ring-[#176b50]"><option value="FIRST">Year 1</option><option value="SECOND">Year 2</option><option value="THIRD">Year 3</option><option value="FOURTH">Year 4</option></select></label>
         </div>
         <label htmlFor="profile-skills" className="mt-5 block text-xs font-medium text-[#526057]">Skills</label><p className="mt-1 text-xs text-[#7b857c]">Separate skills with commas.</p><input id="profile-skills" value={skillsText} onChange={(event) => setSkillsText(event.target.value)} className="mt-2 w-full rounded-lg border border-[#e2e7e1] px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#176b50]" />
         <button disabled={saving} className="mt-4 rounded-lg bg-[#176b50] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{saving ? "Saving…" : "Save profile"}</button>{message && <p role={messageKind === "error" ? "alert" : "status"} className={`mt-3 text-xs ${messageKind === "error" ? "text-[#b94b48]" : "text-[#176b50]"}`}>{message}</p>}

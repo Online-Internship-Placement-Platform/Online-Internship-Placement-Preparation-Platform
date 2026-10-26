@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   checkEligibility,
   getEligibilityChecks,
+  isInternshipOpenForApplications,
   type InternshipEligibilityRequirements,
   type StudentEligibilityProfile,
 } from "./eligibility";
@@ -22,6 +23,31 @@ const eligibleInternship: InternshipEligibilityRequirements = {
 const now = new Date("2030-06-01T12:00:00.000Z");
 
 const tests: Array<{ name: string; run: () => void }> = [
+  {
+    name: "reports availability as open before the deadline",
+    run: () => assert.equal(
+      isInternshipOpenForApplications(true, true, "2030-06-30", new Date("2030-06-30T12:00:00.000Z")),
+      true,
+    ),
+  },
+  {
+    name: "reports availability as open at the deadline boundary",
+    run: () => assert.equal(
+      isInternshipOpenForApplications(true, true, new Date("2030-06-30T12:00:00.000Z"), new Date("2030-06-30T12:00:00.000Z")),
+      true,
+    ),
+  },
+  {
+    name: "reports availability as closed after the deadline",
+    run: () => assert.equal(
+      isInternshipOpenForApplications(true, true, "2030-06-30", new Date("2030-07-01T00:00:00.000Z")),
+      false,
+    ),
+  },
+  {
+    name: "reports availability as closed for invalid deadlines",
+    run: () => assert.equal(isInternshipOpenForApplications(true, true, "2030-02-30", now), false),
+  },
   {
     name: "accepts an eligible student and normalizes branch and skill names",
     run: () => assert.deepEqual(checkEligibility(eligibleStudent, eligibleInternship, now), { eligible: true, reasons: [] }),

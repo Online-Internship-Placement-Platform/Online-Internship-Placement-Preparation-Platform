@@ -1,6 +1,8 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { prisma } from "@/lib/prisma";
+import { toSessionRole } from "@/modules/authentication/authentication";
 import type { Role } from "@/lib/placement-data";
 
 const COOKIE_NAME = "inplace-server-session";
@@ -58,13 +60,22 @@ export async function getServerSession(): Promise<ServerSession | null> {
     if (typeof payload !== "object" || payload === null) return null;
     const record = payload as Record<string, unknown>;
     if (
-      !Number.isInteger(record.userId) ||
+      !Number.isInteger(record.userId) || (record.userId as number) <= 0 ||
       (record.role !== "student" && record.role !== "admin" && record.role !== "super-admin") ||
       typeof record.expiresAt !== "number" ||
       record.expiresAt <= Math.floor(Date.now() / 1000)
     ) return null;
 
-    return { userId: record.userId as number, role: record.role };
+    try {
+      const user = await prisma.user.findUnique({ where: { id: record.userId as number }, select: { role: true } });
+      const role = user ? toSessionRole(user.role) : null;
+      if (!role) return null;
+      return { userId: record.userId as number, role };
+    } catch (error) {
+      const errorCode = typeof error === "object" && error !== null && "code" in error ? String(error.code) : "unknown";
+      console.error("Session account lookup failed.", { errorCode });
+      return null;
+    }
   } catch {
     return null;
   }
