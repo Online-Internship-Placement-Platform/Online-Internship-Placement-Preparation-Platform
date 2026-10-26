@@ -8,6 +8,8 @@ import ApplicationsView from "@/components/applications-view";
 import AdminApplicationsView from "@/components/admin-applications-view";
 import AssessmentsView from "@/components/assessments-view";
 import AdminAssessmentsView from "@/components/admin-assessments-view";
+import StudentProfileView from "@/components/student-profile-view";
+import AdminStudentDirectoryView from "@/components/admin-student-directory-view";
 
 export function DashboardViewByRole({ role }: { role: Role }) {
   return (
@@ -31,6 +33,14 @@ export function ApplicationsViewByRole({ role }: { role: Role }) {
 
 export function AssessmentsViewByRole({ role }: { role: Role }) {
   return role === "student" ? <AssessmentsView role={role} /> : <AdminAssessmentsView role={role} />;
+}
+
+export function ProfileViewByRole({ role }: { role: Role }) {
+  return role === "student" ? <StudentProfileView /> : null;
+}
+
+export function StudentDirectoryViewByRole({ role }: { role: Role }) {
+  return role === "student" ? null : <AdminStudentDirectoryView role={role} />;
 }
 
 export const DashboardPage = DashboardViewByRole;
