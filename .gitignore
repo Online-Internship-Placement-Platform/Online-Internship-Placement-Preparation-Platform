@@ -1,8 +1,5 @@
 note.txt
 
-# Generated Prisma Client
-/generated/prisma/
-
 ## Default ignored items for next.js apps
 # dependencies
 /node_modules
@@ -23,10 +20,14 @@ note.txt
 
 # production
 /build
+/private_uploads/
 
 # misc
 .DS_Store
 *.pem
+
+# Generated Prisma Client
+/generated/
 
 # debug
 npm-debug.log*
@@ -44,5 +45,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-# Generated Prisma client
-/generated/
