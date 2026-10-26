@@ -75,6 +75,7 @@ model PlacementTest {
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
   questions   TestQuestion[]
+  attempts    TestAttempt[]
 }
 
 model TestQuestion {
@@ -87,4 +88,20 @@ model TestQuestion {
   @@id([testId, questionId])
   @@unique([testId, order])
   @@index([questionId])
+}
+
+model TestAttempt {
+  id             Int           @id @default(autoincrement())
+  studentId      String        // email of the authenticated demo account
+  testId         Int
+  correctCount   Int
+  totalQuestions Int
+  percentage     Float
+  answers        Json          // QuestionResult[]: {questionId, studentAnswer, correctAnswer, isCorrect}
+  completedAt    DateTime      @default(now())
+
+  test           PlacementTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, testId])
+  @@index([studentId, completedAt])
 }

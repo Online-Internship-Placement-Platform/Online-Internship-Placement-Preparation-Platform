@@ -30,7 +30,7 @@ export async function signIn(email: string, password: string): Promise<SignInRes
     return { success: false, error: "The email or password is incorrect." };
   }
 
-  await createRoleSession(account.role);
+  await createRoleSession(account.role, account.email);
   return { success: true, role: account.role };
 }
 

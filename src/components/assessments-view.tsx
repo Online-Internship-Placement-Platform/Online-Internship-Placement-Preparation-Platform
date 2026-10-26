@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { AppShell } from "@/components/app-shell";
 import {
   ANSWER_OPTIONS,
@@ -10,8 +10,8 @@ import {
   type AnswerOption,
   type PlacementDomain,
 } from "@/lib/assessment-options";
-import type { AvailablePlacementTest, QuestionResult } from "@/app/student/assessments/actions";
-import { listAvailablePlacementTests, scoreAttempt } from "@/app/student/assessments/actions";
+import type { AvailablePlacementTest, QuestionResult, AttemptSummary } from "@/app/student/assessments/actions";
+import { listAvailablePlacementTests, scoreAttempt, getAttemptHistory } from "@/app/student/assessments/actions";
 
 // ─── Root component: domain selector ────────────────────────────────────────
 
@@ -32,6 +32,59 @@ export default function AssessmentsView({
   const [scoreResult, setScoreResult] = useState<import("@/app/student/assessments/actions").ScoreResult | null>(null);
   const [scoring, setScoring] = useState(false);
   const [scoreError, setScoreError] = useState("");
+  const [attemptHistory, setAttemptHistory] = useState<AttemptSummary[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const activeHistoryTestIdRef = useRef<number | null>(null);
+  const historyRequestRef = useRef<{
+    testId: number;
+    promise: Promise<void>;
+  } | null>(null);
+
+  async function loadAttemptHistory(testId: number, refreshAfterCurrent = false) {
+    const currentRequest = historyRequestRef.current;
+    if (currentRequest?.testId === testId) {
+      await currentRequest.promise;
+      if (refreshAfterCurrent && activeHistoryTestIdRef.current === testId) {
+        await loadAttemptHistory(testId);
+      }
+      return;
+    }
+
+    const request = (async () => {
+      if (activeHistoryTestIdRef.current === testId) {
+        setHistoryLoading(true);
+        setHistoryError("");
+      }
+
+      try {
+        const result = await getAttemptHistory(testId);
+        if (activeHistoryTestIdRef.current !== testId) return;
+        if (result.success) {
+          setAttemptHistory(result.data);
+        } else {
+          setHistoryError(result.error);
+        }
+      } catch {
+        if (activeHistoryTestIdRef.current === testId) {
+          setHistoryError("Could not load attempt history. Please try again.");
+        }
+      } finally {
+        if (activeHistoryTestIdRef.current === testId) {
+          setHistoryLoading(false);
+        }
+      }
+    })();
+
+    historyRequestRef.current = { testId, promise: request };
+    try {
+      await request;
+    } finally {
+      if (historyRequestRef.current?.promise === request) {
+        historyRequestRef.current = null;
+      }
+    }
+  }
 
   async function handleDomainSelect(domain: PlacementDomain) {
     setSelectedDomain(domain);
@@ -64,6 +117,10 @@ export default function AssessmentsView({
     setSubmitted(false);
     setScoreResult(null);
     setScoreError("");
+    setAttemptHistory([]);
+    setHistoryError("");
+    activeHistoryTestIdRef.current = testId;
+    void loadAttemptHistory(testId);
   }
 
   async function submitAttempt(event: FormEvent<HTMLFormElement>) {
@@ -76,6 +133,8 @@ export default function AssessmentsView({
       if (result.success) {
         setScoreResult(result);
         setSubmitted(true);
+        // Refresh history to include the just-saved attempt
+        void loadAttemptHistory(activeTestId, true);
       } else {
         setScoreError(result.error);
       }
@@ -84,6 +143,13 @@ export default function AssessmentsView({
     } finally {
       setScoring(false);
     }
+  }
+
+  function retakeTest() {
+    setAnswers({});
+    setSubmitted(false);
+    setScoreResult(null);
+    setScoreError("");
   }
 
   const activeTest = tests.find((test) => test.id === activeTestId);
@@ -137,11 +203,21 @@ export default function AssessmentsView({
           scoring={scoring}
           scoreError={scoreError}
           scoreResult={submitted && scoreResult && scoreResult.success ? scoreResult : null}
+          attemptHistory={attemptHistory}
+          historyLoading={historyLoading}
+          historyError={historyError}
+          onRetryHistory={() => {
+            if (activeTestId !== null) void loadAttemptHistory(activeTestId);
+          }}
           onAnswer={(questionId, answer) =>
             setAnswers((current) => ({ ...current, [questionId]: answer }))
           }
           onSubmit={submitAttempt}
-          onBack={() => setActiveTestId(null)}
+          onRetake={retakeTest}
+          onBack={() => {
+            activeHistoryTestIdRef.current = null;
+            setActiveTestId(null);
+          }}
         />
       </AppShell>
     );
@@ -229,8 +305,13 @@ export function ActivePracticeTest({
   scoring = false,
   scoreError = "",
   scoreResult = null,
+  attemptHistory = [],
+  historyLoading = false,
+  historyError = "",
+  onRetryHistory,
   onAnswer,
   onSubmit,
+  onRetake,
   onBack,
 }: {
   test: AvailablePlacementTest;
@@ -245,8 +326,13 @@ export function ActivePracticeTest({
     percentage: number;
     questionResults: QuestionResult[];
   } | null;
+  attemptHistory?: AttemptSummary[];
+  historyLoading?: boolean;
+  historyError?: string;
+  onRetryHistory?: () => void;
   onAnswer: (questionId: number, answer: AnswerOption) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onRetake?: () => void;
   onBack: () => void;
 }) {
   // Build a lookup map from questionResults for fast access.
@@ -301,6 +387,58 @@ export function ActivePracticeTest({
         >
           {scoreError}
         </p>
+      )}
+
+      {/* Previous attempt history */}
+      {(historyLoading || historyError || attemptHistory.length > 0) && (
+        <section aria-labelledby="attempt-history-heading" className="mb-5">
+          <h3 id="attempt-history-heading" className="mb-2 text-xs font-bold uppercase tracking-widest text-[#69736b]">
+            Previous attempts
+          </h3>
+          {historyLoading ? (
+            <p className="text-xs text-[#6e786f]" role="status">Loading history…</p>
+          ) : null}
+          {historyError && (
+            <div className="mb-2 rounded-lg border border-[#f1d1ce] bg-[#fff8f7] p-3 text-sm text-[#b94b48]" role="alert">
+              <p>{historyError}</p>
+              {onRetryHistory && (
+                <button
+                  type="button"
+                  onClick={onRetryHistory}
+                  disabled={historyLoading}
+                  className="mt-2 font-semibold underline disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Retry loading history
+                </button>
+              )}
+            </div>
+          )}
+          {attemptHistory.length > 0 && (
+            <ol className="space-y-2">
+              {attemptHistory.map((attempt, index) => (
+                <li
+                  key={attempt.id}
+                  className="rounded-lg border border-[#edf0ec] bg-[#fafbf9] px-4 py-3 text-xs"
+                >
+                  <span className="font-semibold text-[#17211b]">Attempt {index + 1}</span>
+                  <span className="ml-3 text-[#176b50]">
+                    {attempt.correctCount} / {attempt.totalQuestions} ({
+                      attempt.percentage % 1 === 0
+                        ? attempt.percentage.toFixed(0)
+                        : attempt.percentage.toFixed(1)
+                    }%)
+                  </span>
+                  <span className="ml-3 text-[#6e786f]">
+                    {new Date(attempt.completedAt).toLocaleString("en-IN", {
+                      day: "numeric", month: "short", year: "numeric",
+                      hour: "2-digit", minute: "2-digit",
+                    })}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
       )}
 
       <form onSubmit={onSubmit}>
@@ -385,6 +523,15 @@ export function ActivePracticeTest({
             className="mt-5 rounded-lg bg-[#176b50] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#12563f] disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {scoring ? "Scoring…" : "Submit answers"}
+          </button>
+        )}
+        {submitted && onRetake && (
+          <button
+            type="button"
+            onClick={onRetake}
+            className="mt-5 rounded-lg border border-[#b9d6c4] px-4 py-2.5 text-sm font-semibold text-[#176b50] hover:bg-[#f7fbf8]"
+          >
+            Retake test
           </button>
         )}
       </form>

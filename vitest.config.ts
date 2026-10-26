@@ -14,6 +14,7 @@ export default defineConfig({
     // To run archived tests separately: npx vitest run src/tests/placement-test-management/additional/
     include: [
       "src/tests/placement-test-management/sprint1/**/*.test.ts",
+      "src/tests/placement-test-management/sprint2/**/*.test.ts",
     ],
   },
 });

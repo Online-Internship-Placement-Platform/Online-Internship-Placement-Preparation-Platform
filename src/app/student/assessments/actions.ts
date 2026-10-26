@@ -3,7 +3,9 @@
 import { prisma } from "@/lib/prisma";
 import type { PlacementDifficulty, PlacementDomain, AnswerOption } from "@/lib/assessment-options";
 import { isPlacementDomain, isAnswerOption } from "@/lib/assessment-options";
-import { getServerRole, isServerAuthConfigured } from "@/lib/server-auth";
+import { getServerRole, getServerEmail, isServerAuthConfigured } from "@/lib/server-auth";
+
+// ─── Public types ─────────────────────────────────────────────────────────────
 
 export type AvailablePlacementTest = {
   id: number;
@@ -38,8 +40,25 @@ export type ScoreResult =
       correctCount: number;
       percentage: number;
       questionResults: QuestionResult[];
+      /** Persisted attempt ID; null only for a zero-question test, which is not recorded. */
+      attemptId: number | null;
     }
   | { success: false; error: string };
+
+export type AttemptSummary = {
+  id: number;
+  correctCount: number;
+  totalQuestions: number;
+  percentage: number;
+  completedAt: string; // ISO string — safe to pass from server to client
+  questionResults: QuestionResult[];
+};
+
+export type AttemptHistoryResult =
+  | { success: true; data: AttemptSummary[] }
+  | { success: false; error: string };
+
+// ─── listAvailablePlacementTests ──────────────────────────────────────────────
 
 export async function listAvailablePlacementTests(
   domain?: PlacementDomain,
@@ -58,7 +77,6 @@ export async function listAvailablePlacementTests(
     };
   }
 
-  // Validate domain if provided
   if (domain !== undefined && !isPlacementDomain(domain)) {
     return {
       success: false,
@@ -69,9 +87,7 @@ export async function listAvailablePlacementTests(
   try {
     const tests = await prisma.placementTest.findMany({
       where: {
-        // Only show tests that are default (always visible) OR explicitly published by an admin.
         OR: [{ isDefault: true }, { isPublished: true }],
-        // Narrow to a specific domain when one is selected.
         ...(domain ? { domain } : {}),
       },
       orderBy: [{ isDefault: "desc" }, { difficulty: "asc" }, { id: "desc" }],
@@ -93,7 +109,7 @@ export async function listAvailablePlacementTests(
                 optionB: true,
                 optionC: true,
                 optionD: true,
-                // correctOption is deliberately NOT selected — never expose before submission.
+                // correctOption deliberately NOT selected — never expose before submission.
               },
             },
           },
@@ -126,6 +142,8 @@ export async function listAvailablePlacementTests(
   }
 }
 
+// ─── scoreAttempt ─────────────────────────────────────────────────────────────
+
 export async function scoreAttempt(
   testId: unknown,
   submittedAnswers: unknown,
@@ -144,7 +162,6 @@ export async function scoreAttempt(
     };
   }
 
-  // Validate testId is a positive integer.
   if (
     typeof testId !== "number" ||
     !Number.isInteger(testId) ||
@@ -153,7 +170,6 @@ export async function scoreAttempt(
     return { success: false, error: "Invalid test ID." };
   }
 
-  // Validate submitted answers: must be a plain object with AnswerOption values.
   if (
     typeof submittedAnswers !== "object" ||
     submittedAnswers === null ||
@@ -195,15 +211,13 @@ export async function scoreAttempt(
     });
 
     if (!test) {
-      return {
-        success: false,
-        error: "Test not found or not available.",
-      };
+      return { success: false, error: "Test not found or not available." };
     }
 
     const totalQuestions = test.questions.length;
 
     if (totalQuestions === 0) {
+      // Preserve the existing zero-question result without requiring or recording an attempt.
       return {
         success: true,
         totalQuestions: 0,
@@ -211,6 +225,17 @@ export async function scoreAttempt(
         correctCount: 0,
         percentage: 0,
         questionResults: [],
+        attemptId: null,
+      };
+    }
+
+    // Re-verify the signed server session before scoring or persisting a non-empty test.
+    // Student identity is never accepted from client input.
+    const studentId = await getServerEmail();
+    if (!studentId) {
+      return {
+        success: false,
+        error: "Could not identify the current student session. Please sign in again.",
       };
     }
 
@@ -231,6 +256,18 @@ export async function scoreAttempt(
 
     const percentage = (correctCount / totalQuestions) * 100;
 
+    const saved = await prisma.testAttempt.create({
+      data: {
+        studentId,
+        testId,
+        correctCount,
+        totalQuestions,
+        percentage,
+        answers: questionResults as unknown as object[],
+      },
+      select: { id: true },
+    });
+
     return {
       success: true,
       totalQuestions,
@@ -238,12 +275,89 @@ export async function scoreAttempt(
       correctCount,
       percentage,
       questionResults,
+      attemptId: saved.id,
     };
   } catch (error) {
     console.error("Failed to score placement test attempt.", error);
     return {
       success: false,
       error: "Could not score the test. Please try again.",
+    };
+  }
+}
+
+// ─── getAttemptHistory ────────────────────────────────────────────────────────
+
+export async function getAttemptHistory(
+  testId: unknown,
+): Promise<AttemptHistoryResult> {
+  if (!isServerAuthConfigured()) {
+    return {
+      success: false,
+      error: "Server authentication is not configured. Contact an administrator.",
+    };
+  }
+
+  if ((await getServerRole()) !== "student") {
+    return {
+      success: false,
+      error: "Sign in as a student to view attempt history.",
+    };
+  }
+
+  if (
+    typeof testId !== "number" ||
+    !Number.isInteger(testId) ||
+    testId <= 0
+  ) {
+    return { success: false, error: "Invalid test ID." };
+  }
+
+  // Confirm test exists and is accessible to students.
+  const testExists = await prisma.placementTest.findFirst({
+    where: { id: testId, OR: [{ isDefault: true }, { isPublished: true }] },
+    select: { id: true },
+  });
+  if (!testExists) {
+    return { success: false, error: "Test not found or not available." };
+  }
+
+  // studentId from session — never trusted from client.
+  const studentId = await getServerEmail();
+  if (!studentId) {
+    return { success: false, error: "Could not identify the current student session." };
+  }
+
+  try {
+    const attempts = await prisma.testAttempt.findMany({
+      where: { studentId, testId },
+      orderBy: { completedAt: "asc" },
+      select: {
+        id: true,
+        correctCount: true,
+        totalQuestions: true,
+        percentage: true,
+        completedAt: true,
+        answers: true,
+      },
+    });
+
+    return {
+      success: true,
+      data: attempts.map((a) => ({
+        id: a.id,
+        correctCount: a.correctCount,
+        totalQuestions: a.totalQuestions,
+        percentage: a.percentage,
+        completedAt: a.completedAt.toISOString(),
+        questionResults: a.answers as unknown as QuestionResult[],
+      })),
+    };
+  } catch (error) {
+    console.error("Failed to retrieve attempt history.", error);
+    return {
+      success: false,
+      error: "Could not load attempt history. Please try again.",
     };
   }
 }

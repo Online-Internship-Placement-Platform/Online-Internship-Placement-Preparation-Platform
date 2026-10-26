@@ -20,12 +20,14 @@ vi.mock("server-only", () => ({}));
 
 vi.mock("@/lib/server-auth", () => ({
   getServerRole: vi.fn(),
+  getServerEmail: vi.fn(),
   isServerAuthConfigured: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     placementTest: { findFirst: vi.fn() },
+    testAttempt: { create: vi.fn() },
   },
 }));
 
@@ -46,7 +48,7 @@ vi.mock("@/app/student/assessments/actions", async (importOriginal) => {
 });
 
 import { scoreAttempt, type AvailablePlacementTest, type QuestionResult } from "@/app/student/assessments/actions";
-import { getServerRole, isServerAuthConfigured } from "@/lib/server-auth";
+import { getServerRole, getServerEmail, isServerAuthConfigured } from "@/lib/server-auth";
 import { prisma } from "@/lib/prisma";
 import { ActivePracticeTest } from "@/components/assessments-view";
 
@@ -78,9 +80,14 @@ const MOCK_SCORE_RESULT = {
 function authorisedStudent() {
   vi.mocked(isServerAuthConfigured).mockReturnValue(true);
   vi.mocked(getServerRole).mockResolvedValue("student");
+  vi.mocked(getServerEmail).mockResolvedValue("student@gmail.com");
 }
 
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  // Default: testAttempt.create succeeds so scoring tests focus on score logic, not persistence.
+  vi.mocked(prisma.testAttempt.create).mockResolvedValue({ id: 1 } as never);
+});
 
 // ─── Correct score calculation ────────────────────────────────────────────────
 

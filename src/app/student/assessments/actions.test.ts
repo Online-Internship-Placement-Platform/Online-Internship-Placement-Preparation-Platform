@@ -4,6 +4,7 @@ vi.mock("server-only", () => ({}));
 
 vi.mock("@/lib/server-auth", () => ({
   getServerRole: vi.fn(),
+  getServerEmail: vi.fn(),
   isServerAuthConfigured: vi.fn(),
 }));
 
@@ -13,6 +14,10 @@ vi.mock("@/lib/prisma", () => ({
       findMany: vi.fn(),
       findFirst: vi.fn(),
     },
+    testAttempt: {
+      create: vi.fn(),
+      findMany: vi.fn(),
+    },
   },
 }));
 
@@ -21,7 +26,7 @@ import {
   scoreAttempt,
   type AvailablePlacementTest,
 } from "@/app/student/assessments/actions";
-import { getServerRole, isServerAuthConfigured } from "@/lib/server-auth";
+import { getServerRole, getServerEmail, isServerAuthConfigured } from "@/lib/server-auth";
 import { prisma } from "@/lib/prisma";
 
 const NOW = new Date();
@@ -67,10 +72,13 @@ const MOCK_SCORE_TEST = {
 function authorisedStudent() {
   vi.mocked(isServerAuthConfigured).mockReturnValue(true);
   vi.mocked(getServerRole).mockResolvedValue("student");
+  vi.mocked(getServerEmail).mockResolvedValue("student@gmail.com");
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Default: testAttempt.create succeeds silently so existing scoring tests are unaffected.
+  vi.mocked(prisma.testAttempt.create).mockResolvedValue({ id: 1 } as never);
 });
 
 // ─── Authorization ────────────────────────────────────────────────────────────

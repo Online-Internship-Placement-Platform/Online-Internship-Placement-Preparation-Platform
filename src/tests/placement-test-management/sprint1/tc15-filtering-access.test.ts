@@ -202,20 +202,25 @@ describe("TC-15 — students can only view assigned/selected tests (not manage)"
         id: 3, title: "Web basics", description: null,
         domain: "WEB_DEVELOPMENT" as const, difficulty: "EASY" as const,
         isDefault: true, isPublished: true, createdAt: new Date(), updatedAt: new Date(),
-        questions: [{
-          question: {
-            id: 12, prompt: "What does HTML stand for?",
-            optionA: "HyperText Markup Language", optionB: "B", optionC: "C", optionD: "D",
-            correctOption: "A" as const,
-            domain: "WEB_DEVELOPMENT" as const, difficulty: "EASY" as const,
-            createdAt: new Date(), updatedAt: new Date(),
-          },
-        }],
-      },
+        questions: [],
+      } as never,
     ]);
     const result = await listAvailablePlacementTests();
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect(JSON.stringify(result.data)).not.toContain("correctOption");
+    expect(prisma.placementTest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          questions: expect.objectContaining({
+            select: {
+              question: {
+                select: expect.not.objectContaining({ correctOption: true }),
+              },
+            },
+          }),
+        }),
+      }),
+    );
   });
 });
