@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -15,34 +16,77 @@ export default function AccountRequestsPage() {
   const [message, setMessage] = useState("");
   const [busyId, setBusyId] = useState<number | null>(null);
 
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function fetchRequests() {
+      try {
+        const response = await fetch("/api/admin/account-requests", {
+          signal: controller.signal,
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error ?? "Could not load requests.");
+        }
+
+        setRequests(data.requests);
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") return;
+
+        setMessage(
+          error instanceof Error ? error.message : "Could not load requests."
+        );
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void fetchRequests();
+
+    return () => controller.abort();
+  }, []);
+
   async function loadRequests() {
     setLoading(true);
+    setMessage("");
+
     try {
       const response = await fetch("/api/admin/account-requests");
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Could not load requests.");
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Could not load requests.");
+      }
+
       setRequests(data.requests);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not load requests.");
+      setMessage(
+        error instanceof Error ? error.message : "Could not load requests."
+      );
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => {
-    void loadRequests();
-  }, []);
-
   async function decide(id: number, decision: "approve" | "reject") {
     setBusyId(id);
     setMessage("");
+
     try {
-      const response = await fetch(`/api/admin/account-requests/${id}/${decision}`, {
-        method: "POST",
-      });
+      const response = await fetch(
+        `/api/admin/account-requests/${id}/${decision}`,
+        { method: "POST" }
+      );
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Action failed.");
-      setMessage(data.message);
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Action failed.");
+      }
+
+      setMessage(data.message ?? "Request processed successfully.");
       await loadRequests();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Action failed.");
@@ -58,7 +102,11 @@ export default function AccountRequestsPage() {
         Review and approve or reject requests to create administrator accounts.
       </p>
 
-      {message && <p role="status" className="my-4 text-sm">{message}</p>}
+      {message && (
+        <p role="status" className="my-4 text-sm">
+          {message}
+        </p>
+      )}
 
       {loading ? (
         <p className="mt-6">Loading requests…</p>
@@ -73,6 +121,7 @@ export default function AccountRequestsPage() {
               <p className="mt-1 text-xs text-gray-500">
                 Requested {new Date(request.createdAt).toLocaleString()}
               </p>
+
               <div className="mt-4 flex gap-3">
                 <button
                   className="rounded bg-black px-4 py-2 text-white disabled:opacity-50"
@@ -81,6 +130,7 @@ export default function AccountRequestsPage() {
                 >
                   {busyId === request.id ? "Processing…" : "Approve"}
                 </button>
+
                 <button
                   className="rounded border px-4 py-2 disabled:opacity-50"
                   disabled={busyId !== null}
