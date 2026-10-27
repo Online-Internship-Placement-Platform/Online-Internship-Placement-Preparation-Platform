@@ -1,17 +1,46 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
-import { getStudents } from "@/lib/student-store";
 import { filterStudents, getStudentSkillOptions, searchSkillOptions, type StudentSearchCriteria } from "@/lib/student-search";
+import type { Student } from "@/lib/placement-data";
 
 const inputClass = "w-full rounded-lg border border-[#dfe5df] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#176b50]";
 const initialCriteria: StudentSearchCriteria = { name: "", email: "", branch: "All branches", minCgpa: "", maxCgpa: "", yearOfStudy: "All years", skills: [] };
 
 export default function AdminStudentDirectoryView({ role = "admin" }: { role?: "admin" | "super-admin" }) {
-  const [records] = useState(getStudents);
+  const [records, setRecords] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [criteria, setCriteria] = useState<StudentSearchCriteria>(initialCriteria);
   const [skillQuery, setSkillQuery] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRecords() {
+      setLoading(true);
+      setError("");
+      try {
+        const response = await fetch("/api/admin/students", { cache: "no-store" });
+        const result = (await response.json()) as { students?: Student[]; error?: string };
+        if (!response.ok || !Array.isArray(result.students)) {
+          throw new Error(result.error ?? "The student directory is temporarily unavailable.");
+        }
+        if (!cancelled) setRecords(result.students);
+      } catch (loadError) {
+        if (!cancelled) setError(loadError instanceof Error ? loadError.message : "The student directory is temporarily unavailable.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void loadRecords();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const filtered = useMemo(() => filterStudents(records, criteria), [records, criteria]);
   const branches = [...new Set(records.map((student) => student.branch))].sort();
   const skills = getStudentSkillOptions(records);
@@ -27,8 +56,9 @@ export default function AdminStudentDirectoryView({ role = "admin" }: { role?: "
   }
 
   return <AppShell role={role} title="Student directory" eyebrow="Administration">
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3"><div><p className="text-sm text-[#6e786f]">Search student profiles by contact, academics, and skills.</p><p className="mt-1 text-xs text-[#9aa49b]">Directory data is a frontend prototype and resets when refreshed.</p></div><span className="text-sm font-semibold text-[#526057]">{filtered.length} {filtered.length === 1 ? "student" : "students"}</span></div>
-    <section aria-label="Student filters" className="mb-5 rounded-xl border border-[#e2e7e1] bg-white p-4">
+    {error && <p role="alert" className="mb-5 rounded-lg border border-[#f1d1ce] bg-[#fff8f7] px-4 py-3 text-sm text-[#b94b48]">{error}</p>}
+    {!loading && <div className="mb-5 flex flex-wrap items-end justify-between gap-3"><div><p className="text-sm text-[#6e786f]">Search student profiles by contact, academics, and skills.</p><p className="mt-1 text-xs text-[#9aa49b]">Directory data is loaded from the authenticated admin session.</p></div><span className="text-sm font-semibold text-[#526057]">{filtered.length} {filtered.length === 1 ? "student" : "students"}</span></div>}
+    {loading ? <p className="text-sm text-[#6e786f]">Loading student directory…</p> : <><section aria-label="Student filters" className="mb-5 rounded-xl border border-[#e2e7e1] bg-white p-4">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <label className="text-xs font-semibold text-[#526057]">Name<input className={`${inputClass} mt-1.5 font-normal`} value={criteria.name ?? ""} onChange={(event) => updateCriteria("name", event.target.value)} placeholder="Search name" /></label>
         <label className="text-xs font-semibold text-[#526057]">Email<input className={`${inputClass} mt-1.5 font-normal`} type="search" value={criteria.email ?? ""} onChange={(event) => updateCriteria("email", event.target.value)} placeholder="Search email" /></label>
@@ -53,5 +83,6 @@ export default function AdminStudentDirectoryView({ role = "admin" }: { role?: "
     </div>
     <div className="space-y-3 md:hidden">{filtered.map((student) => <article key={student.id} className="rounded-xl border border-[#e2e7e1] bg-white p-4"><h2 className="mb-3 text-sm font-semibold">{student.name}</h2><dl className="grid grid-cols-[90px_1fr] gap-x-3 gap-y-2 text-xs"><dt className="text-[#89948b]">Email</dt><dd className="break-all text-[#526057]">{student.email}</dd><dt className="text-[#89948b]">Branch</dt><dd className="text-[#526057]">{student.branch}</dd><dt className="text-[#89948b]">CGPA</dt><dd className="text-[#526057]">{student.cgpa.toFixed(1)}</dd><dt className="text-[#89948b]">Year</dt><dd className="text-[#526057]">{student.yearOfStudy}</dd><dt className="text-[#89948b]">Skills</dt><dd className="flex flex-wrap gap-1">{student.skills.map((skill) => <span key={skill} className="rounded border border-[#e2e7e1] px-1.5 py-1 text-[10px] text-[#6e786f]">{skill}</span>)}</dd></dl></article>)}</div>
     {filtered.length === 0 && <div className="rounded-xl border border-[#e2e7e1] bg-white p-10 text-center text-sm text-[#7b857c]">No students match your filters.</div>}
+    </>}
   </AppShell>;
 }
