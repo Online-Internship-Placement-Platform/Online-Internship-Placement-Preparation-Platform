@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * TC-17: Automatic score and percentage calculation and display
  *

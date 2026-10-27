@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * TC-18: Test Result History and Retakes
  *

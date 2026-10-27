@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * TC-15: Question/test filtering and role-based access
  *

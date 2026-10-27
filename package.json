@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "seed:demo": "tsx prisma/seed.ts",
+    "initialize:demo-passwords": "tsx prisma/initialize-demo-passwords.ts",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run --reporter=verbose",
@@ -24,15 +26,20 @@
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^20.19.43",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4.7.0",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
+    "jsdom": "^26.1.0",
     "prisma": "^7.10.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",
+    "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.7"
   }
 }

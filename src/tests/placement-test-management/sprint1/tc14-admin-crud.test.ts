@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * TC-14: Admin CRUD on questions and placement tests
  *

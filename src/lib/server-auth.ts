@@ -3,6 +3,8 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import type { Role } from "@/lib/placement-data";
+import { prisma } from "@/lib/prisma";
+import { getServerSession as getVerifiedSession } from "@/lib/server-session";
 
 const SESSION_COOKIE = "inplace-server-session";
 const SESSION_DURATION_SECONDS = 60 * 60 * 8;
@@ -17,7 +19,8 @@ function getSessionSecret() {
 }
 
 export function isServerAuthConfigured() {
-  return getSessionSecret() !== null;
+  const sessionSecret = process.env.SESSION_SECRET;
+  return getSessionSecret() !== null || Boolean(sessionSecret && sessionSecret.length >= 32);
 }
 
 function signSession(role: Role, email: string, expiresAt: number, secret: string) {
@@ -52,7 +55,7 @@ export async function clearRoleSession() {
 
 type SessionPayload = { role: Role; email: string };
 
-export async function getServerSession(): Promise<SessionPayload | null> {
+async function getLegacyServerSession(): Promise<SessionPayload | null> {
   const secret = getSessionSecret();
   if (!secret) return null;
 
@@ -87,6 +90,19 @@ export async function getServerSession(): Promise<SessionPayload | null> {
   }
 
   return { role, email };
+}
+
+export async function getServerSession(): Promise<SessionPayload | null> {
+  const verifiedSession = await getVerifiedSession();
+  if (verifiedSession) {
+    const user = await prisma.user.findUnique({
+      where: { id: verifiedSession.userId },
+      select: { email: true },
+    });
+    return user ? { role: verifiedSession.role, email: user.email } : null;
+  }
+
+  return getLegacyServerSession();
 }
 
 export async function getServerRole(): Promise<Role | null> {

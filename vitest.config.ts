@@ -1,18 +1,28 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
 
+/**
+ * Merged Vitest configuration.
+ *
+ * Includes both:
+ *   - Placement-test management Sprint 1 & Sprint 2 tests (node environment)
+ *   - Shared __tests__/ component/auth tests (jsdom environment, React plugin)
+ *
+ * Server-action test files that need node semantics use:
+ *   // @vitest-environment node
+ */
 export default defineConfig({
+  plugins: [react()],
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
   test: {
-    environment: "node",
-    // npm test runs only Sprint 1 tests.
-    // additional/ (106 archived tests) and sprint2/ are excluded from this default run.
-    // To run archived tests separately: npx vitest run src/tests/placement-test-management/additional/
+    environment: "jsdom",
     include: [
+      "__tests__/**/*.{test,spec}.{ts,tsx}",
       "src/tests/placement-test-management/sprint1/**/*.test.ts",
       "src/tests/placement-test-management/sprint2/**/*.test.ts",
     ],

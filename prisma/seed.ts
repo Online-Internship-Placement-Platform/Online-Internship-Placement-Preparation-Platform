@@ -1,5 +1,5 @@
-/**
- * Idempotent seed script — Issue #27
+﻿/**
+ * Idempotent seed script ΓÇö Issue #27
  *
  * Inserts 150 predefined questions (10 per domain per difficulty) and
  * 15 default tests (one per domain+difficulty combination) into the database.
@@ -31,7 +31,7 @@ const adapter = new PrismaMariaDb({
 const prisma = new PrismaClient({ adapter });
 
 // ---------------------------------------------------------------------------
-// Question data — 10 per domain per difficulty
+// Question data ΓÇö 10 per domain per difficulty
 // ---------------------------------------------------------------------------
 
 type Domain = "WEB_DEVELOPMENT" | "AI_ML" | "CORE_CS" | "NETWORKS" | "DATABASES";
@@ -50,7 +50,7 @@ interface QuestionSeed {
 }
 
 const questions: QuestionSeed[] = [
-  // ── WEB_DEVELOPMENT / EASY ────────────────────────────────────────────────
+  // ΓöÇΓöÇ WEB_DEVELOPMENT / EASY ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   { domain: "WEB_DEVELOPMENT", difficulty: "EASY", prompt: "What does HTML stand for?", optionA: "HyperText Markup Language", optionB: "HighText Machine Language", optionC: "HyperText Machine Learning", optionD: "HighText Markup Language", correctOption: "A" },
   { domain: "WEB_DEVELOPMENT", difficulty: "EASY", prompt: "Which HTML tag is used to define an internal style sheet?", optionA: "<script>", optionB: "<css>", optionC: "<style>", optionD: "<link>", correctOption: "C" },
   { domain: "WEB_DEVELOPMENT", difficulty: "EASY", prompt: "Which property in CSS is used to change the text color?", optionA: "font-color", optionB: "text-color", optionC: "color", optionD: "foreground-color", correctOption: "C" },
@@ -62,7 +62,7 @@ const questions: QuestionSeed[] = [
   { domain: "WEB_DEVELOPMENT", difficulty: "EASY", prompt: "What value does `typeof null` return in JavaScript?", optionA: "null", optionB: "undefined", optionC: "object", optionD: "boolean", correctOption: "C" },
   { domain: "WEB_DEVELOPMENT", difficulty: "EASY", prompt: "Which CSS property controls the spacing between elements' borders and their content?", optionA: "margin", optionB: "border-spacing", optionC: "padding", optionD: "gap", correctOption: "C" },
 
-  // ── WEB_DEVELOPMENT / MEDIUM ──────────────────────────────────────────────
+  // ΓöÇΓöÇ WEB_DEVELOPMENT / MEDIUM ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   { domain: "WEB_DEVELOPMENT", difficulty: "MEDIUM", prompt: "What does the CSS `position: sticky` value do?", optionA: "Fixes the element relative to the viewport", optionB: "Positions the element relative to its nearest positioned ancestor, switching to fixed when a scroll threshold is reached", optionC: "Removes the element from the document flow", optionD: "Stacks the element above floated siblings", correctOption: "B" },
   { domain: "WEB_DEVELOPMENT", difficulty: "MEDIUM", prompt: "In the React rendering model, what triggers a component re-render?", optionA: "Calling any function inside the component", optionB: "A state or prop change", optionC: "Accessing the DOM directly", optionD: "Importing a module", correctOption: "B" },
   { domain: "WEB_DEVELOPMENT", difficulty: "MEDIUM", prompt: "Which HTTP status code indicates that a resource was permanently moved?", optionA: "301", optionB: "302", optionC: "304", optionD: "307", correctOption: "A" },
@@ -74,7 +74,7 @@ const questions: QuestionSeed[] = [
   { domain: "WEB_DEVELOPMENT", difficulty: "MEDIUM", prompt: "What is the default value of the CSS `position` property?", optionA: "absolute", optionB: "fixed", optionC: "relative", optionD: "static", correctOption: "D" },
   { domain: "WEB_DEVELOPMENT", difficulty: "MEDIUM", prompt: "Which hook in React allows you to perform side effects in a functional component?", optionA: "useState", optionB: "useRef", optionC: "useEffect", optionD: "useContext", correctOption: "C" },
 
-  // ── WEB_DEVELOPMENT / HARD ────────────────────────────────────────────────
+  // ΓöÇΓöÇ WEB_DEVELOPMENT / HARD ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   { domain: "WEB_DEVELOPMENT", difficulty: "HARD", prompt: "In a browser's event loop, what is the difference between a microtask and a macrotask?", optionA: "Microtasks run after every macrotask; macrotasks include setTimeout callbacks", optionB: "Macrotasks always run before microtasks in each tick", optionC: "Microtasks are run synchronously, macrotasks asynchronously", optionD: "There is no functional difference; the terms are interchangeable", correctOption: "A" },
   { domain: "WEB_DEVELOPMENT", difficulty: "HARD", prompt: "What is the critical rendering path?", optionA: "The sequence of steps the browser takes to parse HTML, construct the DOM and CSSOM, and paint pixels", optionB: "The fastest network route between client and server", optionC: "The order in which JavaScript modules are imported", optionD: "The sequence of React lifecycle methods", correctOption: "A" },
   { domain: "WEB_DEVELOPMENT", difficulty: "HARD", prompt: "Which HTTP/2 feature allows the server to push resources to the client before they are explicitly requested?", optionA: "Multiplexing", optionB: "Header compression", optionC: "Server push", optionD: "Stream prioritization", correctOption: "C" },
@@ -86,7 +86,7 @@ const questions: QuestionSeed[] = [
   { domain: "WEB_DEVELOPMENT", difficulty: "HARD", prompt: "Which Web API allows incremental rendering of streamed HTML responses?", optionA: "WebSockets", optionB: "Server-Sent Events", optionC: "Fetch with ReadableStream", optionD: "XMLHttpRequest streaming mode", correctOption: "C" },
   { domain: "WEB_DEVELOPMENT", difficulty: "HARD", prompt: "What is the purpose of `WeakMap` over `Map` in JavaScript?", optionA: "WeakMap has better lookup performance than Map", optionB: "WeakMap keys must be primitive values", optionC: "WeakMap holds weak references to its keys, allowing them to be garbage-collected when no other references exist", optionD: "WeakMap is serializable to JSON while Map is not", correctOption: "C" },
 
-  // ── AI_ML / EASY ─────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ AI_ML / EASY ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   { domain: "AI_ML", difficulty: "EASY", prompt: "What does 'ML' stand for in AI/ML?", optionA: "Machine Logic", optionB: "Machine Learning", optionC: "Model Learning", optionD: "Mathematical Logic", correctOption: "B" },
   { domain: "AI_ML", difficulty: "EASY", prompt: "Which of the following is a supervised learning algorithm?", optionA: "K-means clustering", optionB: "DBSCAN", optionC: "Linear regression", optionD: "Principal component analysis", correctOption: "C" },
   { domain: "AI_ML", difficulty: "EASY", prompt: "What is a training dataset used for?", optionA: "Evaluating the final model performance", optionB: "Teaching the model by adjusting its parameters", optionC: "Tuning hyperparameters", optionD: "Storing model weights after training", correctOption: "B" },
@@ -98,7 +98,7 @@ const questions: QuestionSeed[] = [
   { domain: "AI_ML", difficulty: "EASY", prompt: "What does a neural network's hidden layer do?", optionA: "Receives raw input data", optionB: "Produces the final output predictions", optionC: "Learns intermediate feature representations", optionD: "Stores training labels", correctOption: "C" },
   { domain: "AI_ML", difficulty: "EASY", prompt: "Which metric is most appropriate for evaluating a binary classification model on a balanced dataset?", optionA: "Mean squared error", optionB: "Accuracy", optionC: "R-squared", optionD: "Mean absolute error", correctOption: "B" },
 
-  // ── AI_ML / MEDIUM ────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ AI_ML / MEDIUM ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   { domain: "AI_ML", difficulty: "MEDIUM", prompt: "What is backpropagation used for in neural networks?", optionA: "Generating predictions on new data", optionB: "Computing gradients of the loss with respect to weights to update them during training", optionC: "Initialising the weights before training", optionD: "Regularising the network to prevent overfitting", correctOption: "B" },
   { domain: "AI_ML", difficulty: "MEDIUM", prompt: "What is the vanishing gradient problem?", optionA: "Gradients become very large, causing unstable training", optionB: "Gradients become very small as they propagate backwards, making early layers learn slowly", optionC: "The model fails to converge because the learning rate is too high", optionD: "Weights are initialised to zero and stay unchanged", correctOption: "B" },
   { domain: "AI_ML", difficulty: "MEDIUM", prompt: "What does the term 'epoch' mean in model training?", optionA: "A single forward pass through one sample", optionB: "One complete pass through the entire training dataset", optionC: "The time taken to update weights once", optionD: "The number of layers in the network", correctOption: "B" },
@@ -110,7 +110,7 @@ const questions: QuestionSeed[] = [
   { domain: "AI_ML", difficulty: "MEDIUM", prompt: "What is the key idea behind ensemble learning?", optionA: "Using a single very deep model to capture all patterns", optionB: "Combining multiple models to produce better predictions than any individual model", optionC: "Training on multiple datasets simultaneously", optionD: "Applying transfer learning from pre-trained models", correctOption: "B" },
   { domain: "AI_ML", difficulty: "MEDIUM", prompt: "In k-fold cross-validation, what is the role of each fold?", optionA: "Each fold serves as the test set once while the remaining folds are used for training", optionB: "All folds are used for training simultaneously", optionC: "The first fold trains and the rest test", optionD: "Each fold is used to tune hyperparameters independently", correctOption: "A" },
 
-  // ── AI_ML / HARD ─────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ AI_ML / HARD ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   { domain: "AI_ML", difficulty: "HARD", prompt: "What is the attention mechanism in transformers?", optionA: "A gating mechanism that selects relevant memory from an LSTM state", optionB: "A mechanism that computes a weighted sum of value vectors using compatibility scores between queries and keys", optionC: "A regularisation technique that focuses training on hard examples", optionD: "A positional encoding scheme for sequential data", correctOption: "B" },
   { domain: "AI_ML", difficulty: "HARD", prompt: "What distinguishes a generative model from a discriminative model?", optionA: "Generative models learn the joint distribution P(X, Y); discriminative models learn the conditional P(Y|X)", optionB: "Generative models are always unsupervised; discriminative models are supervised", optionC: "Generative models use gradient descent; discriminative models use quadratic programming", optionD: "Generative models only work with image data", correctOption: "A" },
   { domain: "AI_ML", difficulty: "HARD", prompt: "What is the role of the KL divergence term in a variational autoencoder (VAE) loss?", optionA: "It measures reconstruction accuracy", optionB: "It regularises the latent space by penalising deviation of the encoded distribution from a prior", optionC: "It computes the discriminator loss in adversarial training", optionD: "It scales the learning rate based on gradient magnitude", correctOption: "B" },
@@ -122,7 +122,7 @@ const questions: QuestionSeed[] = [
   { domain: "AI_ML", difficulty: "HARD", prompt: "In a GAN, what is the Nash equilibrium condition?", optionA: "The generator produces images with zero loss", optionB: "The discriminator outputs 0.5 for all inputs, indicating it cannot distinguish real from generated samples", optionC: "The discriminator loss equals the generator loss", optionD: "The generator converges to mode collapse", correctOption: "B" },
   { domain: "AI_ML", difficulty: "HARD", prompt: "What is gradient clipping used for in deep learning?", optionA: "Preventing activations from growing beyond a threshold", optionB: "Preventing exploding gradients by rescaling the gradient vector when its norm exceeds a threshold", optionC: "Removing small gradients to speed up training", optionD: "Adapting the learning rate based on gradient history", correctOption: "B" },
 
-  // ── CORE_CS / EASY ────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ CORE_CS / EASY ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   { domain: "CORE_CS", difficulty: "EASY", prompt: "What is the time complexity of binary search on a sorted array?", optionA: "O(n)", optionB: "O(n log n)", optionC: "O(log n)", optionD: "O(1)", correctOption: "C" },
   { domain: "CORE_CS", difficulty: "EASY", prompt: "Which data structure follows the LIFO principle?", optionA: "Queue", optionB: "Stack", optionC: "Linked list", optionD: "Tree", correctOption: "B" },
   { domain: "CORE_CS", difficulty: "EASY", prompt: "What does CPU stand for?", optionA: "Core Processing Unit", optionB: "Central Program Utility", optionC: "Central Processing Unit", optionD: "Computer Processing Unit", correctOption: "C" },
@@ -134,7 +134,7 @@ const questions: QuestionSeed[] = [
   { domain: "CORE_CS", difficulty: "EASY", prompt: "What is a compiler?", optionA: "A program that translates source code into machine code", optionB: "A program that executes code line by line", optionC: "A tool for managing memory", optionD: "A hardware component that speeds up processing", correctOption: "A" },
   { domain: "CORE_CS", difficulty: "EASY", prompt: "What is the purpose of a hash function?", optionA: "To sort data alphabetically", optionB: "To encrypt data for secure transmission", optionC: "To map data of arbitrary size to fixed-size values", optionD: "To compress data for storage", correctOption: "C" },
 
-  // ── CORE_CS / MEDIUM ──────────────────────────────────────────────────────
+  // ΓöÇΓöÇ CORE_CS / MEDIUM ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   { domain: "CORE_CS", difficulty: "MEDIUM", prompt: "What is the difference between a process and a thread?", optionA: "A process is a single instruction; a thread is a full program", optionB: "A process is an independent program in execution with its own memory space; threads share the memory space of their parent process", optionC: "There is no difference; the terms are interchangeable", optionD: "Threads are managed by hardware; processes are managed by software", correctOption: "B" },
   { domain: "CORE_CS", difficulty: "MEDIUM", prompt: "What is deadlock in operating systems?", optionA: "A process consuming 100% CPU indefinitely", optionB: "A situation where two or more processes are each waiting for a resource held by the other, causing all of them to block forever", optionC: "A memory leak that prevents new allocations", optionD: "A race condition in multi-threaded code", correctOption: "B" },
   { domain: "CORE_CS", difficulty: "MEDIUM", prompt: "What is dynamic programming?", optionA: "Writing programs that change their logic at runtime", optionB: "A technique that solves complex problems by breaking them into overlapping subproblems and caching results to avoid redundant computation", optionC: "Allocating memory at runtime instead of compile time", optionD: "A type of polymorphism in object-oriented languages", correctOption: "B" },
@@ -146,7 +146,7 @@ const questions: QuestionSeed[] = [
   { domain: "CORE_CS", difficulty: "MEDIUM", prompt: "What is the difference between stack memory and heap memory?", optionA: "Stack is for global variables; heap is for local variables", optionB: "Stack is managed automatically (LIFO, fixed size); heap is dynamically allocated and managed by the programmer or garbage collector", optionC: "Stack is faster than heap because it uses a linked list", optionD: "Heap is always larger than stack because it includes the OS kernel memory", correctOption: "B" },
   { domain: "CORE_CS", difficulty: "MEDIUM", prompt: "What is memoisation?", optionA: "A hardware caching technique for frequently accessed data", optionB: "Storing the results of expensive function calls and returning the cached result when the same inputs occur again", optionC: "Converting an iterative algorithm to a recursive one", optionD: "Compressing data to reduce memory usage", correctOption: "B" },
 
-  // ── CORE_CS / HARD ────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ CORE_CS / HARD ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   { domain: "CORE_CS", difficulty: "HARD", prompt: "What does the CAP theorem state?", optionA: "A distributed system cannot guarantee Consistency, Availability, and Partition Tolerance simultaneously; it can satisfy at most two", optionB: "A system must choose between Capacity, Availability, and Performance", optionC: "Consistency and Availability can always coexist with Partition Tolerance", optionD: "The CAP theorem applies only to relational databases", correctOption: "A" },
   { domain: "CORE_CS", difficulty: "HARD", prompt: "What is the difference between NP and NP-complete problems?", optionA: "NP problems are solvable in polynomial time; NP-complete problems are not", optionB: "NP is the class of problems verifiable in polynomial time; NP-complete problems are both in NP and NP-hard (every NP problem reduces to them in polynomial time)", optionC: "NP-complete problems have polynomial solutions that have not yet been discovered", optionD: "NP and NP-complete are different names for the same class", correctOption: "B" },
   { domain: "CORE_CS", difficulty: "HARD", prompt: "What is the difference between optimistic and pessimistic locking?", optionA: "Optimistic locking acquires a lock before reading; pessimistic locking acquires it before writing", optionB: "Optimistic locking assumes conflicts are rare and validates at commit time; pessimistic locking blocks other transactions by acquiring locks upfront", optionC: "Optimistic locking uses shared locks; pessimistic locking uses exclusive locks only", optionD: "There is no practical difference between the two strategies", correctOption: "B" },
@@ -158,7 +158,7 @@ const questions: QuestionSeed[] = [
   { domain: "CORE_CS", difficulty: "HARD", prompt: "What distinguishes a B-tree from a binary search tree?", optionA: "A B-tree is always perfectly balanced; a BST is never balanced", optionB: "A B-tree node can have more than two children and stores multiple keys, reducing tree height and improving disk I/O performance", optionC: "A B-tree uses hashing; a BST uses comparison", optionD: "A B-tree supports only integer keys; a BST supports any comparable type", correctOption: "B" },
   { domain: "CORE_CS", difficulty: "HARD", prompt: "What is a happens-before relationship in concurrency?", optionA: "A total ordering of all instructions in a multi-threaded program", optionB: "A partial order that guarantees that if event A happens-before event B, the effects of A are visible to B", optionC: "The guarantee that one thread completes before another starts", optionD: "The priority ordering used by a thread scheduler", correctOption: "B" },
 
-  // ── NETWORKS / EASY ───────────────────────────────────────────────────────
+  // ΓöÇΓöÇ NETWORKS / EASY ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   { domain: "NETWORKS", difficulty: "EASY", prompt: "What does IP stand for in networking?", optionA: "Internet Protocol", optionB: "Internal Program", optionC: "Interface Port", optionD: "Information Packet", correctOption: "A" },
   { domain: "NETWORKS", difficulty: "EASY", prompt: "Which layer of the OSI model is responsible for routing packets between networks?", optionA: "Data Link layer", optionB: "Transport layer", optionC: "Network layer", optionD: "Session layer", correctOption: "C" },
   { domain: "NETWORKS", difficulty: "EASY", prompt: "What is the purpose of DNS?", optionA: "To assign IP addresses to devices automatically", optionB: "To translate domain names into IP addresses", optionC: "To encrypt data in transit", optionD: "To route packets between routers", correctOption: "B" },
@@ -170,9 +170,9 @@ const questions: QuestionSeed[] = [
   { domain: "NETWORKS", difficulty: "EASY", prompt: "Which transport layer protocol provides reliable, ordered delivery?", optionA: "UDP", optionB: "ICMP", optionC: "TCP", optionD: "ARP", correctOption: "C" },
   { domain: "NETWORKS", difficulty: "EASY", prompt: "What is a firewall?", optionA: "A device that boosts network speed", optionB: "A security system that monitors and controls incoming and outgoing network traffic based on rules", optionC: "A server that stores website data", optionD: "A type of network cable", correctOption: "B" },
 
-  // ── NETWORKS / MEDIUM ─────────────────────────────────────────────────────
+  // ΓöÇΓöÇ NETWORKS / MEDIUM ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   { domain: "NETWORKS", difficulty: "MEDIUM", prompt: "What is the purpose of NAT (Network Address Translation)?", optionA: "To assign domain names to IP addresses", optionB: "To map private IP addresses to a public IP address, allowing multiple devices to share a single public IP", optionC: "To encrypt traffic between two networks", optionD: "To balance traffic across multiple servers", correctOption: "B" },
-  { domain: "NETWORKS", difficulty: "MEDIUM", prompt: "What is the TCP three-way handshake?", optionA: "SYN → SYN-ACK → ACK — the sequence used to establish a TCP connection", optionB: "ACK → SYN → FIN — the sequence to terminate a connection", optionC: "GET → RESPONSE → ACK — the HTTP request-response cycle", optionD: "HELLO → OFFER → REQUEST — the DHCP negotiation", correctOption: "A" },
+  { domain: "NETWORKS", difficulty: "MEDIUM", prompt: "What is the TCP three-way handshake?", optionA: "SYN ΓåÆ SYN-ACK ΓåÆ ACK ΓÇö the sequence used to establish a TCP connection", optionB: "ACK ΓåÆ SYN ΓåÆ FIN ΓÇö the sequence to terminate a connection", optionC: "GET ΓåÆ RESPONSE ΓåÆ ACK ΓÇö the HTTP request-response cycle", optionD: "HELLO ΓåÆ OFFER ΓåÆ REQUEST ΓÇö the DHCP negotiation", correctOption: "A" },
   { domain: "NETWORKS", difficulty: "MEDIUM", prompt: "What is subnetting?", optionA: "Connecting two networks using a router", optionB: "Dividing a network into smaller sub-networks to improve performance and security", optionC: "Assigning a static IP address to a device", optionD: "Encrypting data at the network layer", correctOption: "B" },
   { domain: "NETWORKS", difficulty: "MEDIUM", prompt: "What is the difference between TCP and UDP?", optionA: "TCP is connectionless and faster; UDP is connection-oriented and reliable", optionB: "TCP is connection-oriented, reliable, and ordered; UDP is connectionless, faster, and does not guarantee delivery", optionC: "TCP operates at Layer 2; UDP operates at Layer 3", optionD: "TCP is used only for emails; UDP is used only for video", correctOption: "B" },
   { domain: "NETWORKS", difficulty: "MEDIUM", prompt: "What is DHCP used for?", optionA: "Translating domain names to IP addresses", optionB: "Dynamically assigning IP addresses and network configuration to devices", optionC: "Securing connections with certificates", optionD: "Routing packets across the internet", correctOption: "B" },
@@ -182,8 +182,8 @@ const questions: QuestionSeed[] = [
   { domain: "NETWORKS", difficulty: "MEDIUM", prompt: "What is bandwidth in networking?", optionA: "The latency of a network connection", optionB: "The maximum rate of data transfer across a network path", optionC: "The physical distance between two network nodes", optionD: "The number of packets lost during transmission", correctOption: "B" },
   { domain: "NETWORKS", difficulty: "MEDIUM", prompt: "What does a load balancer do?", optionA: "Encrypts traffic between client and server", optionB: "Distributes incoming network traffic across multiple servers to ensure no single server is overwhelmed", optionC: "Monitors network performance and alerts on anomalies", optionD: "Translates private IP addresses to public ones", correctOption: "B" },
 
-  // ── NETWORKS / HARD ───────────────────────────────────────────────────────
-  { domain: "NETWORKS", difficulty: "HARD", prompt: "What is BGP and what is it used for?", optionA: "Border Gateway Protocol — used to exchange routing information between autonomous systems on the internet", optionB: "Broadcast Gateway Protocol — used to send messages to all devices on a LAN", optionC: "Binary Gateway Protocol — used to encode routing tables in binary format", optionD: "Backbone Gateway Protocol — used to manage traffic on the internet backbone", correctOption: "A" },
+  // ΓöÇΓöÇ NETWORKS / HARD ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  { domain: "NETWORKS", difficulty: "HARD", prompt: "What is BGP and what is it used for?", optionA: "Border Gateway Protocol ΓÇö used to exchange routing information between autonomous systems on the internet", optionB: "Broadcast Gateway Protocol ΓÇö used to send messages to all devices on a LAN", optionC: "Binary Gateway Protocol ΓÇö used to encode routing tables in binary format", optionD: "Backbone Gateway Protocol ΓÇö used to manage traffic on the internet backbone", correctOption: "A" },
   { domain: "NETWORKS", difficulty: "HARD", prompt: "What is the difference between symmetric and asymmetric encryption in network security?", optionA: "Symmetric uses the same key for encryption and decryption; asymmetric uses a public key to encrypt and a private key to decrypt", optionB: "Symmetric is used only for authentication; asymmetric is used only for confidentiality", optionC: "Symmetric is slower than asymmetric for large data sets", optionD: "There is no difference; modern systems use them interchangeably", correctOption: "A" },
   { domain: "NETWORKS", difficulty: "HARD", prompt: "How does TLS ensure both confidentiality and authentication?", optionA: "Through a handshake that authenticates the server using certificates and negotiates symmetric session keys for encrypted communication", optionB: "By hashing each packet with the server's public key", optionC: "By routing all traffic through a trusted third-party proxy", optionD: "By using only symmetric keys stored in the server's TPM", correctOption: "A" },
   { domain: "NETWORKS", difficulty: "HARD", prompt: "What is a SYN flood attack?", optionA: "Sending malformed packets to crash a router", optionB: "A DoS attack that sends many SYN packets without completing the handshake, exhausting the server's half-open connection table", optionC: "Intercepting and replaying authentication tokens", optionD: "Flooding a host with ICMP echo requests", correctOption: "B" },
@@ -194,7 +194,7 @@ const questions: QuestionSeed[] = [
   { domain: "NETWORKS", difficulty: "HARD", prompt: "What is the purpose of TCP's slow start algorithm?", optionA: "To limit the initial connection rate to prevent the server from being overwhelmed by new clients", optionB: "To begin with a small congestion window and increase it exponentially until a loss event occurs, probing for available bandwidth", optionC: "To slow down the sender when the receiver's buffer is full", optionD: "To reduce the connection speed on lossy wireless links", correctOption: "B" },
   { domain: "NETWORKS", difficulty: "HARD", prompt: "What is the significance of the TTL (Time to Live) field in an IP packet?", optionA: "It specifies how long the packet can be cached by a DNS resolver", optionB: "It limits the number of hops a packet can traverse; each router decrements it by one and discards the packet if it reaches zero, preventing infinite loops", optionC: "It sets the timeout for the TCP connection associated with the packet", optionD: "It encodes the maximum segment size for TCP negotiation", correctOption: "B" },
 
-  // ── DATABASES / EASY ──────────────────────────────────────────────────────
+  // ΓöÇΓöÇ DATABASES / EASY ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   { domain: "DATABASES", difficulty: "EASY", prompt: "What does SQL stand for?", optionA: "Structured Query Language", optionB: "Simple Query Language", optionC: "Standard Query Logic", optionD: "Sequential Query Language", correctOption: "A" },
   { domain: "DATABASES", difficulty: "EASY", prompt: "Which SQL clause is used to filter rows?", optionA: "ORDER BY", optionB: "GROUP BY", optionC: "WHERE", optionD: "HAVING", correctOption: "C" },
   { domain: "DATABASES", difficulty: "EASY", prompt: "What is a primary key?", optionA: "A key that references another table", optionB: "A column or set of columns that uniquely identifies each row in a table", optionC: "The first column in a table", optionD: "A column that cannot contain null values", correctOption: "B" },
@@ -206,7 +206,7 @@ const questions: QuestionSeed[] = [
   { domain: "DATABASES", difficulty: "EASY", prompt: "What does NULL represent in a database?", optionA: "Zero", optionB: "An empty string", optionC: "An unknown or missing value", optionD: "False", correctOption: "C" },
   { domain: "DATABASES", difficulty: "EASY", prompt: "Which SQL keyword removes duplicate rows from a result set?", optionA: "UNIQUE", optionB: "DISTINCT", optionC: "FILTER", optionD: "EXCEPT", correctOption: "B" },
 
-  // ── DATABASES / MEDIUM ────────────────────────────────────────────────────
+  // ΓöÇΓöÇ DATABASES / MEDIUM ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   { domain: "DATABASES", difficulty: "MEDIUM", prompt: "What is a database transaction?", optionA: "A query that retrieves data from multiple tables", optionB: "A sequence of operations treated as a single unit of work that either fully commits or fully rolls back", optionC: "A stored procedure that modifies data", optionD: "A scheduled backup of the database", correctOption: "B" },
   { domain: "DATABASES", difficulty: "MEDIUM", prompt: "What does ACID stand for in database systems?", optionA: "Availability, Consistency, Isolation, Durability", optionB: "Atomicity, Consistency, Isolation, Durability", optionC: "Atomicity, Concurrency, Integrity, Durability", optionD: "Availability, Concurrency, Isolation, Data-integrity", correctOption: "B" },
   { domain: "DATABASES", difficulty: "MEDIUM", prompt: "What is the difference between INNER JOIN and LEFT JOIN?", optionA: "INNER JOIN returns all rows from both tables; LEFT JOIN returns only matching rows", optionB: "INNER JOIN returns only rows with matches in both tables; LEFT JOIN returns all rows from the left table and matching rows from the right", optionC: "LEFT JOIN is faster than INNER JOIN for large tables", optionD: "There is no difference; they produce the same results", correctOption: "B" },
@@ -218,7 +218,7 @@ const questions: QuestionSeed[] = [
   { domain: "DATABASES", difficulty: "MEDIUM", prompt: "What is the purpose of the HAVING clause?", optionA: "To filter rows before they are grouped", optionB: "To filter groups produced by GROUP BY based on aggregate conditions", optionC: "To sort grouped results in descending order", optionD: "To join two grouped result sets", correctOption: "B" },
   { domain: "DATABASES", difficulty: "MEDIUM", prompt: "What is a view in a relational database?", optionA: "A physical copy of a table for performance optimisation", optionB: "A virtual table defined by a stored SELECT query, providing an abstraction layer over base tables", optionC: "A special index on computed columns", optionD: "A log of all data modifications to a table", correctOption: "B" },
 
-  // ── DATABASES / HARD ──────────────────────────────────────────────────────
+  // ΓöÇΓöÇ DATABASES / HARD ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   { domain: "DATABASES", difficulty: "HARD", prompt: "What is the difference between optimistic and pessimistic concurrency control in databases?", optionA: "Optimistic locking acquires locks before reading; pessimistic locking acquires them before writing", optionB: "Optimistic control assumes conflicts are rare and validates at commit time; pessimistic control blocks other transactions upfront by acquiring locks", optionC: "Optimistic control is suitable only for read-heavy workloads; pessimistic control is for write-heavy workloads", optionD: "There is no meaningful difference between them in a single-node database", correctOption: "B" },
   { domain: "DATABASES", difficulty: "HARD", prompt: "What is a covering index?", optionA: "An index that includes all columns needed to satisfy a query, allowing the database to answer the query from the index alone without accessing the table", optionB: "An index that spans the entire table and covers all columns", optionC: "A partial index that covers only rows matching a condition", optionD: "A composite index defined on more than three columns", correctOption: "A" },
   { domain: "DATABASES", difficulty: "HARD", prompt: "What is MVCC (Multi-Version Concurrency Control)?", optionA: "A technique that keeps multiple versions of a row so that readers do not block writers and each transaction sees a consistent snapshot", optionB: "A replication strategy that maintains multiple copies of the database across regions", optionC: "A locking scheme that allows multiple writes to the same row simultaneously", optionD: "A sharding technique that distributes rows across multiple servers", correctOption: "A" },
@@ -248,15 +248,66 @@ function defaultTestTitle(domain: Domain, difficulty: Difficulty): string {
     MEDIUM: "Medium",
     HARD: "Hard",
   };
-  return `${domainLabel[domain]} — ${diffLabel[difficulty]} Practice Test`;
+  return `${domainLabel[domain]} ΓÇö ${diffLabel[difficulty]} Practice Test`;
 }
 
 // ---------------------------------------------------------------------------
-// Main seed function
+
+import { demoAccounts, ensureDemoAccount, type DemoAccountStore } from "../src/modules/authentication/demo-account-seed";
+
+// ---------------------------------------------------------------------------
+// Demo account store (authentication seeding)
 // ---------------------------------------------------------------------------
 
-async function seed() {
-  console.log("Starting idempotent seed...");
+const demoAccountStore: DemoAccountStore = {
+  async findByEmail(email) {
+    return prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        role: true,
+        passwordHash: true,
+        studentProfile: { select: { id: true } },
+      },
+    });
+  },
+  async createAccount(data) {
+    await prisma.user.create({
+      data: {
+        email: data.email,
+        name: data.name,
+        role: data.role,
+        passwordHash: data.passwordHash,
+        ...(data.studentProfile ? { studentProfile: { create: data.studentProfile } } : {}),
+      },
+    });
+  },
+  async updatePasswordHash(id, passwordHash) {
+    await prisma.user.update({ where: { id }, data: { passwordHash } });
+  },
+  async createStudentProfile(userId, profile) {
+    await prisma.studentProfile.create({ data: { userId, ...profile } });
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Internship data (from authentication branch)
+// ---------------------------------------------------------------------------
+
+const internships = [
+  { id: "int-001", company: "Northstar Labs", role: "Frontend Engineering Intern", applicationDeadline: "2026-11-08", minCgpa: 7.5, eligibleBranches: ["Computer Science", "Information Technology"], requiredSkills: ["React", "TypeScript", "CSS"] },
+  { id: "int-002", company: "Aster Finance", role: "Data Analyst Intern", applicationDeadline: "2026-10-28", minCgpa: 8, eligibleBranches: ["Computer Science", "Information Technology", "Statistics"], requiredSkills: ["SQL", "Python", "Excel"] },
+  { id: "int-003", company: "Studio Kora", role: "Product Design Intern", applicationDeadline: "2026-11-18", minCgpa: 7, eligibleBranches: ["Any branch"], requiredSkills: ["Figma", "Research", "Prototyping"] },
+  { id: "int-004", company: "Cloudline Systems", role: "Backend Developer Intern", applicationDeadline: "2026-10-20", minCgpa: 8.5, eligibleBranches: ["Computer Science", "Information Technology"], requiredSkills: ["Node.js", "PostgreSQL", "REST APIs"] },
+  { id: "int-005", company: "GreenGrid Energy", role: "Business Strategy Intern", applicationDeadline: "2026-09-30", minCgpa: 7.5, eligibleBranches: ["Any branch"], requiredSkills: ["Research", "Excel", "Communication"] },
+];
+
+// ---------------------------------------------------------------------------
+// Placement-test seed function (Issue #27 — 150 questions + 15 default tests)
+// ---------------------------------------------------------------------------
+
+async function seedPlacementTests() {
+  console.log("Starting idempotent placement-test seed...");
 
   const domains: Domain[] = ["WEB_DEVELOPMENT", "AI_ML", "CORE_CS", "NETWORKS", "DATABASES"];
   const difficulties: Difficulty[] = ["EASY", "MEDIUM", "HARD"];
@@ -264,40 +315,30 @@ async function seed() {
   let questionsInserted = 0;
   let questionsSkipped = 0;
 
-  // Upsert questions one at a time — match on prompt text to stay idempotent.
   for (const q of questions) {
     const existing = await prisma.question.findFirst({
       where: { prompt: q.prompt },
       select: { id: true },
     });
-    if (existing) {
-      questionsSkipped++;
-      continue;
-    }
+    if (existing) { questionsSkipped++; continue; }
     await prisma.question.create({ data: q });
     questionsInserted++;
   }
 
   console.log(`Questions: ${questionsInserted} inserted, ${questionsSkipped} already existed.`);
 
-  // Create the 15 default tests, each referencing the 10 matching questions.
   let testsInserted = 0;
   let testsSkipped = 0;
 
   for (const domain of domains) {
     for (const difficulty of difficulties) {
       const title = defaultTestTitle(domain, difficulty);
-
       const existing = await prisma.placementTest.findFirst({
         where: { title, domain, difficulty, isDefault: true },
         select: { id: true },
       });
-      if (existing) {
-        testsSkipped++;
-        continue;
-      }
+      if (existing) { testsSkipped++; continue; }
 
-      // Fetch the 10 questions for this domain+difficulty (by insertion order).
       const domainQuestions = await prisma.question.findMany({
         where: { domain, difficulty },
         orderBy: { id: "asc" },
@@ -306,9 +347,7 @@ async function seed() {
       });
 
       if (domainQuestions.length < 10) {
-        console.warn(
-          `Warning: only ${domainQuestions.length} questions found for ${domain}/${difficulty}. Expected 10.`
-        );
+        console.warn(`Warning: only ${domainQuestions.length} questions found for ${domain}/${difficulty}. Expected 10.`);
       }
 
       await prisma.placementTest.create({
@@ -332,12 +371,68 @@ async function seed() {
   }
 
   console.log(`Default tests: ${testsInserted} inserted, ${testsSkipped} already existed.`);
-  console.log("Seed complete.");
 }
 
-seed()
-  .catch((error) => {
+// ---------------------------------------------------------------------------
+// Demo account + internship seed (from authentication branch)
+// ---------------------------------------------------------------------------
+
+async function seedDemoAccounts() {
+  if (process.env.NODE_ENV === "production") {
+    console.warn("Skipping demo account seed in production.");
+    return;
+  }
+  if (process.env.ALLOW_DEMO_SEED !== "true") {
+    console.log("Skipping demo account seed (set ALLOW_DEMO_SEED=true to enable).");
+    return;
+  }
+
+  for (const account of demoAccounts) {
+    const result = await ensureDemoAccount(demoAccountStore, account);
+    if (result === "role-mismatch") {
+      console.warn(`Skipped ${account.email}: an account with a different role already exists.`);
+    } else {
+      console.info(`${result === "created" ? "Created" : result === "completed" ? "Completed missing demo data for" : "Kept existing"} ${account.email}.`);
+    }
+  }
+
+  for (const internship of internships) {
+    await prisma.internship.upsert({
+      where: { id: internship.id },
+      update: {
+        company: internship.company,
+        role: internship.role,
+        applicationDeadline: new Date(`${internship.applicationDeadline}T00:00:00.000Z`),
+        minCgpa: internship.minCgpa,
+        eligibleBranches: internship.eligibleBranches.join("\n"),
+        requiredSkills: internship.requiredSkills.join("\n"),
+      },
+      create: {
+        ...internship,
+        applicationDeadline: new Date(`${internship.applicationDeadline}T00:00:00.000Z`),
+        eligibleBranches: internship.eligibleBranches.join("\n"),
+        requiredSkills: internship.requiredSkills.join("\n"),
+        published: true,
+        acceptingApplications: true,
+      },
+    });
+  }
+  console.log("Demo accounts and internships seeded.");
+}
+
+// ---------------------------------------------------------------------------
+// Entry point — runs both seeds
+// ---------------------------------------------------------------------------
+
+async function main() {
+  await seedPlacementTests();
+  await seedDemoAccounts();
+  console.log("All seeds complete.");
+}
+
+main()
+  .catch((error: unknown) => {
     console.error("Seed failed:", error);
-    process.exit(1);
+    process.exitCode = 1;
   })
-  .finally(() => prisma.$disconnect());
+  .finally(async () => prisma.$disconnect());
