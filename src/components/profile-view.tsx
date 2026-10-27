@@ -1,86 +1,289 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import type { Role } from "@/lib/placement-data";
 import { AppShell } from "@/components/app-shell";
 
-type Profile = { name: string | null; email: string; branch: string | null; cgpa: number | null; yearOfStudy: "FIRST" | "SECOND" | "THIRD" | "FOURTH"; skills: string[] };
+const inputClass = "w-full rounded-lg border border-[#dfe5df] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#176b50]";
+const labelClass = "mb-1.5 block text-xs font-semibold text-[#526057]";
 
-export default function ProfileView() {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [skillsText, setSkillsText] = useState("");
-  const [name, setName] = useState("");
-  const [branch, setBranch] = useState("");
-  const [cgpa, setCgpa] = useState("");
-  const [yearOfStudy, setYearOfStudy] = useState("");
-  const [message, setMessage] = useState("");
-  const [messageKind, setMessageKind] = useState<"success" | "error">("success");
+type ProfileRecord = {
+  id: number;
+  name: string | null;
+  email: string;
+  role: Role;
+  branch?: string | null;
+  cgpa?: number | null;
+  yearOfStudy?: "FIRST" | "SECOND" | "THIRD" | "FOURTH" | null;
+  skills?: string[];
+};
+
+type StudentDraft = {
+  branch: string;
+  cgpa: number;
+  yearOfStudy: "FIRST" | "SECOND" | "THIRD" | "FOURTH";
+  skills: string[];
+};
+
+function makeDraft(profile: ProfileRecord | null): StudentDraft {
+  return {
+    branch: profile?.branch ?? "",
+    cgpa: profile?.cgpa ?? 0,
+    yearOfStudy: profile?.yearOfStudy ?? "FIRST",
+    skills: profile?.skills ? [...profile.skills] : [],
+  };
+}
+
+function formatAcademicYear(value: "FIRST" | "SECOND" | "THIRD" | "FOURTH") {
+  const map = {
+    FIRST: "1st Year",
+    SECOND: "2nd Year",
+    THIRD: "3rd Year",
+    FOURTH: "4th Year",
+  } as const;
+  return map[value];
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-xl border border-[#e2e7e1] bg-white p-5 md:p-6">
+      <h2 className="mb-5 text-sm font-bold">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+export function ProfileView({ role }: { role: Role }) {
+  const [profile, setProfile] = useState<ProfileRecord | null>(null);
+  const [draft, setDraft] = useState<StudentDraft>(makeDraft(null));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   useEffect(() => {
-    fetch("/api/student/profile", { cache: "no-store" })
-      .then(async (response) => {
-        const result = await response.json() as { profile?: Profile; error?: string };
-        if (!response.ok || !result.profile) throw new Error(result.error ?? "Profile is unavailable.");
-        setProfile(result.profile);
-        setSkillsText(result.profile.skills.join(", "));
-        setName(result.profile.name ?? "");
-        setBranch(result.profile.branch ?? "");
-        setCgpa(result.profile.cgpa === null ? "" : String(result.profile.cgpa));
-        setYearOfStudy(result.profile.yearOfStudy);
-      })
-      .catch((error: unknown) => { setMessageKind("error"); setMessage(error instanceof Error ? error.message : "Profile is unavailable."); })
-      .finally(() => setLoading(false));
-  }, []);
+    let cancelled = false;
 
-  async function save(event: FormEvent<HTMLFormElement>) {
+    async function loadProfile() {
+      setLoading(true);
+      setError("");
+      setSuccess("");
+      try {
+        const response = await fetch("/api/profile", { cache: "no-store" });
+        const result = (await response.json()) as { profile?: ProfileRecord; error?: string };
+        if (!response.ok || !result.profile) {
+          throw new Error(result.error ?? "Unable to load profile.");
+        }
+
+        if (!cancelled) {
+          const nextProfile = result.profile as ProfileRecord;
+          setProfile(nextProfile);
+          setDraft(makeDraft(nextProfile));
+          setEditing(false);
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(loadError instanceof Error ? loadError.message : "Unable to load profile.");
+          setProfile(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void loadProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [role]);
+
+  async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (role !== "student") return;
+
     setSaving(true);
-    setMessage("");
-    setMessageKind("success");
+    setError("");
+    setSuccess("");
+
     try {
-      const skills = skillsText.split(",").map((skill) => skill.trim()).filter(Boolean);
-      const response = await fetch("/api/student/profile", {
+      const response = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name,
-          branch,
-          cgpa: cgpa.trim() ? Number(cgpa) : null,
-          yearOfStudy,
-          skills,
+          branch: draft.branch,
+          cgpa: draft.cgpa,
+          yearOfStudy: draft.yearOfStudy,
+          skills: draft.skills,
         }),
       });
-      const result = await response.json() as Partial<Profile> & { error?: string };
-      if (!response.ok || !result.skills) throw new Error(result.error ?? "Skills could not be saved.");
-      setProfile((current) => current ? { ...current, name: result.name ?? current.name, branch: result.branch ?? current.branch, cgpa: result.cgpa ?? current.cgpa, yearOfStudy: (result.yearOfStudy as Profile["yearOfStudy"]) ?? current.yearOfStudy, skills: result.skills! } : current);
-      setSkillsText(result.skills.join(", "));
-      setMessage("Profile saved.");
-    } catch (error) {
-      setMessageKind("error");
-      setMessage(error instanceof Error ? error.message : "Profile could not be saved.");
+
+      const result = (await response.json()) as { profile?: ProfileRecord; error?: string };
+      if (!response.ok || !result.profile) {
+        throw new Error(result.error ?? "Unable to save profile.");
+      }
+
+      setProfile(result.profile);
+      setDraft(makeDraft(result.profile));
+      setEditing(false);
+      setSuccess("Profile updated successfully.");
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Unable to save profile.");
     } finally {
       setSaving(false);
     }
   }
 
-  return <AppShell title="Student profile" eyebrow="Student workspace"><div className="max-w-2xl rounded-xl border border-[#e2e7e1] bg-white p-6">
-    {loading ? <p role="status" className="text-sm text-[#7b857c]">Loading profile…</p> : profile ? <>
-      <h2 className="text-sm font-bold">Profile details</h2><p className="mt-1 text-xs text-[#7b857c]">Name, branch, CGPA, and academic year are required for student profiles.</p>
-      <form onSubmit={save} className="mt-5">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Name" value={name} onChange={setName} required />
-          <Detail label="Email" value={profile.email} />
-          <Field label="Branch" value={branch} onChange={setBranch} required />
-          <label className="block text-xs font-medium text-[#526057]">CGPA<input type="number" min="0" max="10" step="any" required value={cgpa} onChange={(event) => setCgpa(event.target.value)} className="mt-1.5 w-full rounded-lg border border-[#e2e7e1] px-3 py-2.5 text-sm text-[#17211b] outline-none focus:ring-2 focus:ring-[#176b50]" /></label>
-          <label className="block text-xs font-medium text-[#526057]">Academic year<select required value={yearOfStudy} onChange={(event) => setYearOfStudy(event.target.value)} className="mt-1.5 w-full rounded-lg border border-[#e2e7e1] px-3 py-2.5 text-sm text-[#17211b] outline-none focus:ring-2 focus:ring-[#176b50]"><option value="FIRST">Year 1</option><option value="SECOND">Year 2</option><option value="THIRD">Year 3</option><option value="FOURTH">Year 4</option></select></label>
-        </div>
-        <label htmlFor="profile-skills" className="mt-5 block text-xs font-medium text-[#526057]">Skills</label><p className="mt-1 text-xs text-[#7b857c]">Separate skills with commas.</p><input id="profile-skills" value={skillsText} onChange={(event) => setSkillsText(event.target.value)} className="mt-2 w-full rounded-lg border border-[#e2e7e1] px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#176b50]" />
-        <button disabled={saving} className="mt-4 rounded-lg bg-[#176b50] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{saving ? "Saving…" : "Save profile"}</button>{message && <p role={messageKind === "error" ? "alert" : "status"} className={`mt-3 text-xs ${messageKind === "error" ? "text-[#b94b48]" : "text-[#176b50]"}`}>{message}</p>}
-      </form>
-    </> : <p role="alert" className="text-sm text-[#7b857c]">{message}</p>}
-  </div></AppShell>;
-}
+  const title = role === "student" ? "My profile" : role === "admin" ? "Admin profile" : "Super admin profile";
+  const eyebrow = role === "student" ? "Student workspace" : "Administration";
 
-function Detail({ label, value }: { label: string; value: string | null }) { return <div><dt className="text-xs text-[#7b857c]">{label}</dt><dd className="mt-1 text-sm font-medium">{value || "Not provided"}</dd></div>; }
-function Field({ label, value, onChange, required }: { label: string; value: string; onChange: (value: string) => void; required: boolean }) { return <label className="block text-xs font-medium text-[#526057]">{label}<input required={required} value={value} onChange={(event) => onChange(event.target.value)} className="mt-1.5 w-full rounded-lg border border-[#e2e7e1] px-3 py-2.5 text-sm text-[#17211b] outline-none focus:ring-2 focus:ring-[#176b50]" /></label>; }
+  return (
+    <AppShell role={role} title={title} eyebrow={eyebrow}>
+      {loading && <p className="text-sm text-[#6e786f]">Loading profile…</p>}
+      {error && <p role="alert" className="mb-5 rounded-lg border border-[#f1d1ce] bg-[#fff8f7] px-4 py-3 text-sm text-[#b94b48]">{error}</p>}
+      {success && <p role="status" className="mb-5 rounded-lg border border-[#b9d6c4] bg-[#f1f8f3] px-4 py-3 text-sm text-[#176b50]">{success}</p>}
+
+      {!loading && profile && (
+        <form onSubmit={saveProfile} className="space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm text-[#6e786f]">Keep account information consistent and review your role-specific details.</p>
+            </div>
+            {role === "student" && !editing && (
+              <button type="button" onClick={() => setEditing(true)} className="rounded-lg bg-[#176b50] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#12563f]">
+                Edit profile
+              </button>
+            )}
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <Section title="Account details">
+              <div className="space-y-4">
+                <div>
+                  <div className={labelClass}>Full name</div>
+                  <p className="min-h-10 rounded-lg bg-[#fafbf9] px-3 py-2.5 text-sm text-[#17211b]">{profile.name ?? "Not provided"}</p>
+                </div>
+                <div>
+                  <div className={labelClass}>Email address</div>
+                  <p className="min-h-10 rounded-lg bg-[#fafbf9] px-3 py-2.5 text-sm text-[#17211b]">{profile.email}</p>
+                </div>
+              </div>
+            </Section>
+
+            {role === "student" && (
+              <Section title="Academic information">
+                {editing ? (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className={labelClass} htmlFor="branch">Branch</label>
+                      <input id="branch" className={inputClass} value={draft.branch} onChange={(event) => setDraft((current) => ({ ...current, branch: event.target.value }))} />
+                    </div>
+                    <div>
+                      <label className={labelClass} htmlFor="cgpa">CGPA (0–10)</label>
+                      <input id="cgpa" type="number" min="0" max="10" step="0.01" className={inputClass} value={draft.cgpa} onChange={(event) => setDraft((current) => ({ ...current, cgpa: Number(event.target.value) }))} />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className={labelClass} htmlFor="yearOfStudy">Academic year</label>
+                      <select id="yearOfStudy" className={inputClass} value={draft.yearOfStudy} onChange={(event) => setDraft((current) => ({ ...current, yearOfStudy: event.target.value as StudentDraft["yearOfStudy"] }))}>
+                        {(["FIRST", "SECOND", "THIRD", "FOURTH"] as const).map((year) => (
+                          <option key={year} value={year}>{formatAcademicYear(year)}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <div className={labelClass}>Branch</div>
+                      <p className="min-h-10 rounded-lg bg-[#fafbf9] px-3 py-2.5 text-sm text-[#17211b]">{profile.branch ?? "Not provided"}</p>
+                    </div>
+                    <div>
+                      <div className={labelClass}>CGPA</div>
+                      <p className="min-h-10 rounded-lg bg-[#fafbf9] px-3 py-2.5 text-sm text-[#17211b]">{profile.cgpa !== null && profile.cgpa !== undefined ? `${profile.cgpa.toFixed(1)} / 10` : "Not provided"}</p>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <div className={labelClass}>Academic year</div>
+                      <p className="min-h-10 rounded-lg bg-[#fafbf9] px-3 py-2.5 text-sm text-[#17211b]">{profile.yearOfStudy ? formatAcademicYear(profile.yearOfStudy) : "Not provided"}</p>
+                    </div>
+                  </div>
+                )}
+              </Section>
+            )}
+          </div>
+
+          {role === "student" && (
+            <Section title="Skills">
+              {editing ? (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    {draft.skills.length === 0 && <p className="text-sm text-[#6e786f]">No skills added yet.</p>}
+                    {draft.skills.map((skill, index) => (
+                      <div key={`${skill}-${index}`} className="flex items-center gap-1 rounded-lg border border-[#dce5de] bg-[#f7faf7] p-1">
+                        <input
+                          aria-label={`Skill ${index + 1}`}
+                          className="w-28 bg-transparent px-2 py-1 text-xs outline-none"
+                          value={skill}
+                          onChange={(event) => setDraft((current) => ({
+                            ...current,
+                            skills: current.skills.map((currentSkill, currentIndex) => currentIndex === index ? event.target.value : currentSkill),
+                          }))}
+                        />
+                        <button
+                          type="button"
+                          aria-label={`Remove ${skill || `skill ${index + 1}`}`}
+                          onClick={() => setDraft((current) => ({ ...current, skills: current.skills.filter((_, currentIndex) => currentIndex !== index) }))}
+                          className="rounded px-2 py-1 text-xs font-semibold text-[#b94b48] hover:bg-[#fcedeb]"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      className={inputClass}
+                      placeholder="Add a skill"
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter") return;
+                        event.preventDefault();
+                        const value = (event.currentTarget as HTMLInputElement).value.trim();
+                        if (!value) return;
+                        setDraft((current) => ({ ...current, skills: [...current.skills, value] }));
+                        (event.currentTarget as HTMLInputElement).value = "";
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {(!profile.skills || profile.skills.length === 0) && <p className="text-sm text-[#6e786f]">No skills listed yet.</p>}
+                  {profile.skills?.map((skill) => (
+                    <span key={skill} className="rounded-lg border border-[#dce5de] bg-[#f7faf7] px-3 py-2 text-xs font-medium text-[#405147]">{skill}</span>
+                  ))}
+                </div>
+              )}
+            </Section>
+          )}
+
+          {role === "student" && editing && (
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <button type="submit" className="rounded-lg bg-[#176b50] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#12563f]" disabled={saving}>
+                {saving ? "Saving…" : "Save profile"}
+              </button>
+              <button type="button" onClick={() => { setDraft(makeDraft(profile)); setEditing(false); setError(""); setSuccess(""); }} className="rounded-lg border border-[#dfe5df] bg-white px-4 py-2.5 text-sm font-semibold text-[#526057]">
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {role === "student" && !editing && (
+            <div className="rounded-xl border border-[#e2e7e1] bg-white p-5 md:p-6">
+              <h2 className="mb-5 text-sm font-bold">Resume</h2>
+              <p className="text-sm text-[#5e6b61]">{profile.name ? "Resume metadata is preserved in the prototype session only." : "No resume uploaded."}</p>
+            </div>
+          )}
+        </form>
+      )}
+    </AppShell>
+  );
+}

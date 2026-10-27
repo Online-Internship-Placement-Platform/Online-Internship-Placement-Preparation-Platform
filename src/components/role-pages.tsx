@@ -8,7 +8,7 @@ import ApplicationsView from "@/components/applications-view";
 import AdminApplicationsView from "@/components/admin-applications-view";
 import AssessmentsView from "@/components/assessments-view";
 import AdminAssessmentsView from "@/components/admin-assessments-view";
-import StudentProfileView from "@/components/student-profile-view";
+import { ProfileView } from "@/components/profile-view";
 import AdminStudentDirectoryView from "@/components/admin-student-directory-view";
 
 export function DashboardViewByRole({ role }: { role: Role }) {
@@ -36,7 +36,7 @@ export function AssessmentsViewByRole({ role }: { role: Role }) {
 }
 
 export function ProfileViewByRole({ role }: { role: Role }) {
-  return role === "student" ? <StudentProfileView /> : null;
+  return <ProfileView role={role} />;
 }
 
 export function StudentDirectoryViewByRole({ role }: { role: Role }) {
