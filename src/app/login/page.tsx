@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Role } from "@/lib/placement-data";
-import { AUTH_STORAGE_KEY, getDashboardRoute } from "@/lib/auth-shared";
+import { getDashboardRoute } from "@/lib/auth-shared";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,10 +14,30 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const session = window.sessionStorage.getItem(AUTH_STORAGE_KEY);
-    if (session === "student" || session === "admin" || session === "super-admin") {
-      router.replace(getDashboardRoute(session as Role));
+    let cancelled = false;
+
+    async function redirectIfAuthenticated() {
+      try {
+        const response = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!response.ok) return;
+
+        const data = (await response.json()) as { user?: { role?: unknown } };
+        const role = data.user?.role;
+        if (
+          !cancelled &&
+          (role === "student" || role === "admin" || role === "super-admin")
+        ) {
+          router.replace(getDashboardRoute(role as Role));
+        }
+      } catch {
+        // Keep the sign-in form available if session validation is unavailable.
+      }
     }
+
+    void redirectIfAuthenticated();
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -31,12 +51,11 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const result = await response.json() as { error?: string; role?: string; route?: string };
-      if (!response.ok || !result.role || !result.route) {
+      const result = await response.json() as { error?: string; route?: string };
+      if (!response.ok || typeof result.route !== "string") {
         setError(result.error ?? "Sign in failed. Please try again.");
         return;
       }
-      window.sessionStorage.setItem(AUTH_STORAGE_KEY, result.role);
       router.replace(result.route);
     } catch {
       setError("Sign in is temporarily unavailable. Please try again.");
