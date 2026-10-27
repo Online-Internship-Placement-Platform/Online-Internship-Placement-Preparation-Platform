@@ -46,7 +46,7 @@ model StudentProfile {
   cgpa        Float
   yearOfStudy YearOfStudy
   skills      Json
-  resumePath  String?     @db.VarChar(500)
+  resumeData  Bytes?      @db.MediumBlob
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
