@@ -6,6 +6,7 @@ import { validateStudentProfile } from "@/modules/students/profile-validation";
 import { validateStudentResume, type ValidatedStudentResume } from "@/modules/students/resume-file";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_RESUME_SIZE = 5 * 1024 * 1024;
 
 export async function POST(request: Request) {
   try {
