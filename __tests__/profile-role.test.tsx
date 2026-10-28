@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
@@ -40,7 +40,7 @@ describe("GET /api/profile", () => {
       name: "Aarav Mehta",
       email: "aarav@example.edu",
       passwordHash: "secret-hash",
-      studentProfile: { branch: "Computer Science", cgpa: 8.7, yearOfStudy: "THIRD", skills: ["React", "SQL"] },
+          studentProfile: { branch: "Computer Science", cgpa: 8.7, yearOfStudy: "THIRD", skills: ["React", "SQL"], resumeFileName: "cv.pdf" },
     });
 
     const response = await GET();
@@ -56,6 +56,7 @@ describe("GET /api/profile", () => {
         cgpa: 8.7,
         yearOfStudy: "THIRD",
         skills: ["React", "SQL"],
+        resumeFileName: "cv.pdf",
       },
     });
   });
@@ -117,6 +118,7 @@ describe("PATCH /api/profile", () => {
       cgpa: 9.1,
       yearOfStudy: "FOURTH",
       skills: ["SQL", "Python"],
+      resumeFileName: null,
     });
 
     const response = await PATCH(new Request("http://localhost/api/profile", {
@@ -136,6 +138,7 @@ describe("PATCH /api/profile", () => {
         cgpa: 9.1,
         yearOfStudy: "FOURTH",
         skills: ["SQL", "Python"],
+        resumeFileName: null,
       },
     });
   });
@@ -205,5 +208,29 @@ describe("ProfileView", () => {
       expect(screen.getAllByText("Priya Shah").length).toBeGreaterThan(0);
       expect(screen.queryByText("Branch")).toBeNull();
     });
+  });
+
+  it("uploads a resume and updates its displayed filename", async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockImplementation(async (input) => {
+      if (String(input) === "/api/auth/me") {
+        return { ok: true, json: async () => ({ user: { id: 11, name: "Aarav Mehta", role: "student" } }) } as Response;
+      }
+      if (String(input) === "/api/profile/resume") {
+        return { ok: true, json: async () => ({ resumeFileName: "updated-cv.pdf" }) } as Response;
+      }
+      return { ok: true, json: async () => ({ profile: {
+        id: 11, name: "Aarav Mehta", email: "aarav@example.edu", role: "student",
+        branch: "Computer Science", cgpa: 8.7, yearOfStudy: "THIRD", skills: [], resumeFileName: null,
+      } }) } as Response;
+    });
+
+    render(<ProfileView role="student" />);
+    const uploadInput = await screen.findByLabelText("Upload resume PDF");
+    fireEvent.change(uploadInput, { target: { files: [new File(["%PDF-test"], "updated-cv.pdf", { type: "application/pdf" })] } });
+
+    expect(await screen.findByText("updated-cv.pdf")).toBeDefined();
+    expect(await screen.findByText("Resume uploaded successfully.")).toBeDefined();
+    expect(fetchMock).toHaveBeenCalledWith("/api/profile/resume", expect.objectContaining({ method: "POST" }));
   });
 });

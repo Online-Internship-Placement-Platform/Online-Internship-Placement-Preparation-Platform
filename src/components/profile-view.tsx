@@ -17,6 +17,7 @@ type ProfileRecord = {
   cgpa?: number | null;
   yearOfStudy?: "FIRST" | "SECOND" | "THIRD" | "FOURTH" | null;
   skills?: string[];
+  resumeFileName?: string | null;
 };
 
 type StudentDraft = {
@@ -60,6 +61,9 @@ export function ProfileView({ role }: { role: Role }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [resumeBusy, setResumeBusy] = useState(false);
+  const [resumeError, setResumeError] = useState("");
+  const [resumeSuccess, setResumeSuccess] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -132,6 +136,37 @@ export function ProfileView({ role }: { role: Role }) {
       setError(saveError instanceof Error ? saveError.message : "Unable to save profile.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function uploadResume(file: File | undefined) {
+    setResumeError("");
+    setResumeSuccess("");
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".pdf") || (file.type && file.type !== "application/pdf")) {
+      setResumeError("Choose a PDF file.");
+      return;
+    }
+    if (file.size === 0 || file.size > 5 * 1024 * 1024) {
+      setResumeError(file.size === 0 ? "Choose a non-empty PDF file." : "Resume must be 5 MB or smaller.");
+      return;
+    }
+
+    const body = new FormData();
+    body.set("resume", file);
+    setResumeBusy(true);
+    try {
+      const response = await fetch("/api/profile/resume", { method: "POST", body });
+      const result = await response.json() as { resumeFileName?: string; error?: string };
+      if (!response.ok || !result.resumeFileName) {
+        throw new Error(result.error ?? "Resume could not be uploaded.");
+      }
+      setProfile((current) => current ? { ...current, resumeFileName: result.resumeFileName } : current);
+      setResumeSuccess("Resume uploaded successfully.");
+    } catch (uploadError) {
+      setResumeError(uploadError instanceof Error ? uploadError.message : "Resume could not be uploaded.");
+    } finally {
+      setResumeBusy(false);
     }
   }
 
@@ -277,11 +312,38 @@ export function ProfileView({ role }: { role: Role }) {
             </div>
           )}
 
-          {role === "student" && !editing && (
-            <div className="rounded-xl border border-[#e2e7e1] bg-white p-5 md:p-6">
-              <h2 className="mb-5 text-sm font-bold">Resume</h2>
-              <p className="text-sm text-[#5e6b61]">{profile.name ? "Resume metadata is preserved in the prototype session only." : "No resume uploaded."}</p>
-            </div>
+          {role === "student" && (
+            <Section title="Resume">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-[#344238]">{profile.resumeFileName ?? "No resume uploaded"}</p>
+                  <p className="mt-1 text-xs text-[#7b857c]">PDF file · up to 5 MB</p>
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  {profile.resumeFileName && (
+                    <a href="/api/profile/resume" className="rounded-lg border border-[#dfe5df] bg-white px-4 py-2.5 text-sm font-semibold text-[#176b50] hover:bg-[#f7faf7]">
+                      Download resume
+                    </a>
+                  )}
+                  <label className={`cursor-pointer rounded-lg bg-[#176b50] px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-[#12563f] ${resumeBusy ? "pointer-events-none opacity-60" : ""}`}>
+                    {resumeBusy ? "Uploading…" : profile.resumeFileName ? "Replace resume" : "Upload resume"}
+                    <input
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      className="sr-only"
+                      aria-label={profile.resumeFileName ? "Replace resume PDF" : "Upload resume PDF"}
+                      disabled={resumeBusy}
+                      onChange={(event) => {
+                        void uploadResume(event.currentTarget.files?.[0]);
+                        event.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+              {resumeError && <p role="alert" className="mt-3 text-xs text-[#b94b48]">{resumeError}</p>}
+              {resumeSuccess && <p role="status" className="mt-3 text-xs text-[#176b50]">{resumeSuccess}</p>}
+            </Section>
           )}
         </form>
       )}

@@ -55,6 +55,7 @@ model StudentProfile {
   yearOfStudy YearOfStudy
   skills      Json
   resumeData  Bytes?      @db.MediumBlob
+  resumeFileName String?  @db.VarChar(255)
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 

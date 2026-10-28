@@ -37,6 +37,7 @@ function serializeProfile(user: {
     cgpa?: number | null;
     yearOfStudy?: "FIRST" | "SECOND" | "THIRD" | "FOURTH" | null;
     skills?: unknown;
+    resumeFileName?: string | null;
   } | null;
 }, sessionRole: Role) {
   const role = roleFromDatabase(user.role) ?? sessionRole;
@@ -56,6 +57,7 @@ function serializeProfile(user: {
     cgpa: user.studentProfile.cgpa ?? null,
     yearOfStudy: user.studentProfile.yearOfStudy ?? null,
     skills,
+    resumeFileName: user.studentProfile.resumeFileName ?? null,
   };
 }
 
@@ -71,7 +73,7 @@ export async function GET() {
         role: true,
         name: true,
         email: true,
-        studentProfile: session.role === "student" ? { select: { branch: true, cgpa: true, yearOfStudy: true, skills: true } } : undefined,
+        studentProfile: session.role === "student" ? { select: { branch: true, cgpa: true, yearOfStudy: true, skills: true, resumeFileName: true } } : undefined,
       },
     });
 
@@ -134,7 +136,7 @@ export async function PATCH(request: Request) {
   try {
     const user = await prisma.user.findUnique({
       where: { id: session.userId },
-      select: { id: true, role: true, name: true, email: true, studentProfile: { select: { userId: true } } },
+      select: { id: true, role: true, name: true, email: true, studentProfile: { select: { userId: true, resumeFileName: true } } },
     });
 
     if (!user || user.role !== "STUDENT" || !user.studentProfile) {
@@ -156,7 +158,7 @@ export async function PATCH(request: Request) {
     const updatedProfile = await prisma.studentProfile.update({
       where: { userId: session.userId },
       data: profileData,
-      select: { branch: true, cgpa: true, yearOfStudy: true, skills: true },
+      select: { branch: true, cgpa: true, yearOfStudy: true, skills: true, resumeFileName: true },
     });
 
     return NextResponse.json({
@@ -170,6 +172,7 @@ export async function PATCH(request: Request) {
           cgpa: updatedProfile.cgpa,
           yearOfStudy: updatedProfile.yearOfStudy,
           skills: updatedProfile.skills,
+          resumeFileName: updatedProfile.resumeFileName,
         },
       }, session.role),
     }, { headers: { "Cache-Control": "private, no-store" } });
