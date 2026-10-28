@@ -3,15 +3,14 @@ import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 /**
- * Shared Vitest configuration — chore/shared-testing-setup
+ * Merged Vitest configuration.
  *
- * Environment: jsdom (supports both React component tests and server-side tests)
- * Individual test files that require a strict Node environment can opt out with:
+ * Includes both:
+ *   - Placement-test management Sprint 1 & Sprint 2 tests (node environment)
+ *   - Shared __tests__/ component/auth tests (jsdom environment, React plugin)
+ *
+ * Server-action test files that need node semantics use:
  *   // @vitest-environment node
- *
- * include: deliberately limited to __tests__/ so feature-specific test folders
- * on individual feature branches are not accidentally discovered here.
- * Each team member configures their own include on their feature branch.
  */
 export default defineConfig({
   plugins: [react()],
@@ -22,6 +21,10 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
-    include: ["__tests__/**/*.{test,spec}.{ts,tsx}"],
+    include: [
+      "__tests__/**/*.{test,spec}.{ts,tsx}",
+      "src/tests/placement-test-management/sprint1/**/*.test.ts",
+      "src/tests/placement-test-management/sprint2/**/*.test.ts",
+    ],
   },
 });

@@ -42,7 +42,9 @@ export function searchSkillOptions(options: readonly string[], query: string, li
     .slice(0, limit);
 }
 
-export function filterStudents(students: readonly Student[], criteria: StudentSearchCriteria): Student[] {
+type SearchableStudent = Pick<Student, "name" | "email" | "branch" | "cgpa" | "yearOfStudy" | "skills">;
+
+export function filterStudents<T extends SearchableStudent>(students: readonly T[], criteria: StudentSearchCriteria): T[] {
   const name = normalize(criteria.name);
   const email = normalize(criteria.email);
   const branch = criteria.branch?.trim();

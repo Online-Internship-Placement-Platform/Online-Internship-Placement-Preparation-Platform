@@ -15,7 +15,7 @@ vi.mock("@/lib/prisma", () => ({
 
 import { GET, POST } from "@/app/api/profile/resume/route";
 
-function resumeFile(name = "resume.pdf", content = "%PDF-test", type = "application/pdf") {
+function resumeFile(name = "resume.pdf", content: string | Uint8Array<ArrayBuffer> = "%PDF-test", type = "application/pdf") {
   return new File([content], name, { type });
 }
 

@@ -31,8 +31,12 @@ export function ApplicationsViewByRole({ role }: { role: Role }) {
   return role === "student" ? <ApplicationsView role={role} /> : <AdminApplicationsView role={role} />;
 }
 
+// AssessmentsViewByRole is synchronous — the student domain picker fetches
+// tests client-side after the user selects a domain, so no server-side
+// pre-fetch is needed here.
 export function AssessmentsViewByRole({ role }: { role: Role }) {
-  return role === "student" ? <AssessmentsView role={role} /> : <AdminAssessmentsView role={role} />;
+  if (role !== "student") return <AdminAssessmentsView role={role} />;
+  return <AssessmentsView initialTests={[]} />;
 }
 
 export function ProfileViewByRole({ role }: { role: Role }) {
