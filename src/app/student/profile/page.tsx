@@ -1,5 +1,5 @@
-import ProfileView from "@/components/profile-view";
+import { ProfileViewByRole } from "@/components/role-pages";
 
-export default function StudentProfilePage() {
-  return <ProfileView />;
+export default function StudentProfileRoute() {
+  return <ProfileViewByRole role="student" />;
 }

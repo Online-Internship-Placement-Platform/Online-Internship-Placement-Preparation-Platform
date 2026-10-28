@@ -1,7 +1,8 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// Shreya
+
+// This is your Prisma schema file.
+// Learn more: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client"
@@ -12,6 +13,7 @@ datasource db {
   provider = "mysql"
 }
 
+// Account management
 enum Role {
   STUDENT     @map("student")
   ADMIN       @map("admin")
@@ -25,6 +27,12 @@ enum YearOfStudy {
   FOURTH
 }
 
+enum AccountRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id             Int             @id @default(autoincrement())
   name           String?         @db.VarChar(150)
@@ -35,30 +43,35 @@ model User {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   studentProfile StudentProfile?
-  posts          Post[]
   applications   Application[]
 }
 
 model StudentProfile {
-  id          Int         @id @default(autoincrement())
-  userId      Int         @unique
-  branch      String      @db.VarChar(150)
-  cgpa        Float
-  yearOfStudy YearOfStudy
-  skills      Json
-  resumePath  String?     @db.VarChar(500)
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             Int         @id @default(autoincrement())
+  userId         Int         @unique
+  branch         String      @db.VarChar(150)
+  cgpa           Float
+  yearOfStudy    YearOfStudy
+  skills         Json
+  resumeData     Bytes?      @db.MediumBlob
+  resumeFileName String?     @db.VarChar(255)
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model Post {
-  id        Int     @id @default(autoincrement())
-  title     String
-  content   String? @db.Text
-  published Boolean @default(false)
-  author    User    @relation(fields: [authorId], references: [id])
-  authorId  Int
+model AccountCreationRequest {
+  id           Int                  @id @default(autoincrement())
+  name         String               @db.VarChar(150)
+  email        String               @unique @db.VarChar(255)
+  passwordHash String               @db.VarChar(255)
+  role         Role
+  status       AccountRequestStatus @default(PENDING)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  @@index([status, createdAt])
 }
 
+// Placement testing
 enum PlacementDomain {
   WEB_DEVELOPMENT
   AI_ML
@@ -123,7 +136,8 @@ model TestQuestion {
 
 model TestAttempt {
   id             Int           @id @default(autoincrement())
-  studentId      String        // email of the authenticated demo account
+  // Email of the authenticated demo account
+  studentId      String
   testId         Int
   correctCount   Int
   totalQuestions Int
@@ -136,6 +150,7 @@ model TestAttempt {
   @@index([studentId, completedAt])
 }
 
+// Internship and application management
 model Internship {
   id                    String        @id
   company               String
