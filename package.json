@@ -43,6 +43,7 @@
     "vitest": "^3.2.7"
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "4.65.0"
+    "@rollup/rollup-linux-x64-gnu": "4.65.0",
+    "lightningcss-linux-x64-gnu": "1.32.0"
   }
 }
