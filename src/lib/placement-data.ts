@@ -4,7 +4,7 @@ export const APPLICATION_STATUSES = ["Pending", "Under review", "Shortlisted", "
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
 export type StudentResume = { fileName: string; sizeBytes: number };
-export type Student = { id: string; name: string; email: string; branch: string; cgpa: number; yearOfStudy: number; skills: string[]; avatar: string; resume: StudentResume | null };
+export type Student = { id: string; name: string; email: string; branch: string; cgpa: number; yearOfStudy: number; skills: string[]; avatar?: string; resume?: StudentResume | null };
 export type Internship = { id: string; company: string; role: string; domain: string; location: string; skills: string[]; branches: string[]; minCgpa: number; deadline: string; stipend: string; description: string };
 export type Application = { id: string; internshipId: string; studentName: string; appliedOn: string; status: ApplicationStatus };
 export type Assessment = { name: string; domain: string; score: number; total: number; date: string };
