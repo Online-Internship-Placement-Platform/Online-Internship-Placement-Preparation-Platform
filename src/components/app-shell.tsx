@@ -6,9 +6,27 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { Role } from "@/lib/placement-data";
 
 const navItems: Record<Role, { label: string; href: string }[]> = {
-  student: [{ label: "Overview", href: "/student/dashboard" }, { label: "Profile", href: "/student/profile" }, { label: "Internships", href: "/student/internships" }, { label: "Applications", href: "/student/applications" }, { label: "Assessments", href: "/student/assessments" }],
-  admin: [{ label: "Overview", href: "/admin/dashboard" }, { label: "Profile", href: "/admin/profile" }, { label: "Internships", href: "/admin/internships" }, { label: "Student Directory", href: "/admin/student-directory" }, { label: "Applications", href: "/admin/applications" }, { label: "Assessments", href: "/admin/assessments" }],
-  "super-admin": [{ label: "Overview", href: "/super-admin/dashboard" }, { label: "Profile", href: "/super-admin/profile" }, { label: "Internships", href: "/super-admin/internships" }, { label: "Student Directory", href: "/super-admin/student-directory" }, { label: "Applications", href: "/super-admin/applications" }, { label: "Assessments", href: "/super-admin/assessments" }],
+  student: [{ label: "Overview", href: "/student/dashboard" }, 
+    { label: "Profile", href: "/student/profile" }, 
+    { label: "Internships", href: "/student/internships" }, 
+    { label: "Applications", href: "/student/applications" }, 
+    { label: "Assessments", href: "/student/assessments" }
+  ],
+  admin: [{ label: "Overview", href: "/admin/dashboard" }, 
+    { label: "Profile", href: "/admin/profile" }, 
+    { label: "Student Directory", href: "/admin/student-directory" }, 
+    { label: "Internships", href: "/admin/internships" }, 
+    { label: "Submitted Applications", href: "/admin/applications" }, 
+    { label: "Assessments", href: "/admin/assessments" }
+  ],
+  "super-admin": [{ label: "Overview", href: "/super-admin/dashboard" }, 
+    { label: "Profile", href: "/super-admin/profile" }, 
+    { label: "Student Directory", href: "/super-admin/student-directory" }, 
+    { label: "Internships", href: "/super-admin/internships" }, 
+    { label: "Submitted Applications", href: "/super-admin/applications" }, 
+    { label: "Assessments", href: "/super-admin/assessments" },
+    { label: "Admin Account Requests", href: "/super-admin/account-requests" }
+  ],
 };
 const roleNames: Record<Role, string> = { student: "Student", admin: "Admin", "super-admin": "Super Admin" };
 const home: Record<Role, string> = { student: "/student/dashboard", admin: "/admin/dashboard", "super-admin": "/super-admin/dashboard" };
