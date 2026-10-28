@@ -35,14 +35,15 @@ enum AccountRequestStatus {
 
 model User {
   id             Int             @id @default(autoincrement())
-  name           String?         @db.VarChar(150)
+  name           String?         @db.VarChar(191)
   email          String          @unique @db.VarChar(255)
   // Legacy accounts remain nullable until a password has been securely provisioned.
   passwordHash   String?         @db.VarChar(255)
   role           Role            @default(STUDENT)
   createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  updatedAt      DateTime        @default(now()) @updatedAt
   studentProfile StudentProfile?
+  posts          Post[]
   applications   Application[]
 }
 
@@ -56,6 +57,15 @@ model StudentProfile {
   resumeData     Bytes?      @db.MediumBlob
   resumeFileName String?     @db.VarChar(255)
   user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Post {
+  id        Int     @id @default(autoincrement())
+  title     String
+  content   String? @db.Text
+  published Boolean @default(false)
+  author    User    @relation(fields: [authorId], references: [id])
+  authorId  Int
 }
 
 model AccountCreationRequest {
