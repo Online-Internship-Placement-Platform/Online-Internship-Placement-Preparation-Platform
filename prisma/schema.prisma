@@ -178,15 +178,3 @@ model Application {
   @@index([internshipId])
 }
 
-model AccountCreationRequest {
-  id           Int                  @id @default(autoincrement())
-  name         String               @db.VarChar(150)
-  email        String               @unique @db.VarChar(255)
-  passwordHash String               @db.VarChar(255)
-  role         Role
-  status       AccountRequestStatus @default(PENDING)
-  createdAt    DateTime             @default(now())
-  updatedAt    DateTime             @updatedAt
-
-  @@index([status, createdAt])
-}
