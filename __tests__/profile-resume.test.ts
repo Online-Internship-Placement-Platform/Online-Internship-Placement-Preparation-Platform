@@ -1,4 +1,5 @@
-// @vitest-environment node
+
+ // @vitest-environment node
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -15,14 +16,25 @@ vi.mock("@/lib/prisma", () => ({
 
 import { GET, POST } from "@/app/api/profile/resume/route";
 
-function resumeFile(name = "resume.pdf", content: string | Uint8Array<ArrayBuffer> = "%PDF-test", type = "application/pdf") {
-  return new File([content], name, { type });
+
+function resumeFile(
+  name = "resume.pdf",
+  content: string | Uint8Array = "%PDF-test",
+  type = "application/pdf",
+) {
+  const fileContent: BlobPart =
+    typeof content === "string" ? content : new Uint8Array(content).buffer;
+
+  return new File([fileContent], name, { type });
 }
 
 function uploadRequest(file?: File) {
   const formData = new FormData();
   if (file) formData.set("resume", file);
-  return new Request("http://localhost/api/profile/resume", { method: "POST", body: formData });
+  return new Request("http://localhost/api/profile/resume", {
+    method: "POST",
+    body: formData,
+  });
 }
 
 describe("profile resume API", () => {
@@ -50,7 +62,10 @@ describe("profile resume API", () => {
     expect(await response.json()).toEqual({ resumeFileName: "my-cv.pdf" });
     expect(updateProfiles).toHaveBeenCalledWith({
       where: { userId: 7 },
-      data: expect.objectContaining({ resumeFileName: "my-cv.pdf", resumeData: expect.any(Uint8Array) }),
+      data: expect.objectContaining({
+        resumeFileName: "my-cv.pdf",
+        resumeData: expect.any(Uint8Array),
+      }),
     });
   });
 
@@ -66,7 +81,10 @@ describe("profile resume API", () => {
   });
 
   it("downloads only the signed-in student's resume as a private attachment", async () => {
-    findProfile.mockResolvedValue({ resumeData: new Uint8Array([37, 80, 68, 70, 45]), resumeFileName: "my-cv.pdf" });
+    findProfile.mockResolvedValue({
+      resumeData: new Uint8Array([37, 80, 68, 70, 45]),
+      resumeFileName: "my-cv.pdf",
+    });
 
     const response = await GET();
 
@@ -77,7 +95,10 @@ describe("profile resume API", () => {
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
     expect([...new Uint8Array(await response.arrayBuffer())]).toEqual([37, 80, 68, 70, 45]);
-    expect(findProfile).toHaveBeenCalledWith({ where: { userId: 7 }, select: { resumeData: true, resumeFileName: true } });
+    expect(findProfile).toHaveBeenCalledWith({
+      where: { userId: 7 },
+      select: { resumeData: true, resumeFileName: true },
+    });
   });
 
   it("does not allow administrator access to profile resumes", async () => {
