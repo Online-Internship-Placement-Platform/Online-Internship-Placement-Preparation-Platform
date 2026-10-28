@@ -1,3 +1,5 @@
+//Shreya
+
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
@@ -12,6 +14,7 @@ datasource db {
   provider = "mysql"
 }
 
+//Account management
 enum Role {
   STUDENT     @map("student")
   ADMIN       @map("admin")
@@ -41,7 +44,6 @@ model User {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   studentProfile StudentProfile?
-  posts          Post[]
   applications   Application[]
 }
 
@@ -53,18 +55,102 @@ model StudentProfile {
   yearOfStudy YearOfStudy
   skills      Json
   resumeData  Bytes?      @db.MediumBlob
+  resumeFileName String?  @db.VarChar(255)
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model Post {
-  id        Int     @id @default(autoincrement())
-  title     String
-  content   String? @db.Text
-  published Boolean @default(false)
-  author    User    @relation(fields: [authorId], references: [id])
-  authorId  Int
+model AccountCreationRequest {
+  id           Int                  @id @default(autoincrement())
+  name         String               @db.VarChar(150)
+  email        String               @unique @db.VarChar(255)
+  passwordHash String               @db.VarChar(255)
+  role         Role
+  status       AccountRequestStatus @default(PENDING)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  @@index([status, createdAt])
 }
 
+//Placement testing
+enum PlacementDomain {
+  WEB_DEVELOPMENT
+  AI_ML
+  CORE_CS
+  NETWORKS
+  DATABASES
+}
+
+enum PlacementDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum AnswerOption {
+  A
+  B
+  C
+  D
+}
+
+model Question {
+  id            Int                 @id @default(autoincrement())
+  prompt        String              @db.Text
+  optionA       String              @db.Text
+  optionB       String              @db.Text
+  optionC       String              @db.Text
+  optionD       String              @db.Text
+  correctOption AnswerOption
+  domain        PlacementDomain
+  difficulty    PlacementDifficulty
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  tests         TestQuestion[]
+}
+
+model PlacementTest {
+  id          Int                 @id @default(autoincrement())
+  title       String              @db.VarChar(191)
+  description String?             @db.Text
+  domain      PlacementDomain
+  difficulty  PlacementDifficulty
+  isDefault   Boolean             @default(false)
+  isPublished Boolean             @default(false)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  questions   TestQuestion[]
+  attempts    TestAttempt[]
+}
+
+model TestQuestion {
+  testId     Int
+  questionId Int
+  order      Int
+  test       PlacementTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+  question   Question      @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@id([testId, questionId])
+  @@unique([testId, order])
+  @@index([questionId])
+}
+
+model TestAttempt {
+  id             Int           @id @default(autoincrement())
+  studentId      String // email of the authenticated demo account
+  testId         Int
+  correctCount   Int
+  totalQuestions Int
+  percentage     Float
+  answers        Json
+  completedAt    DateTime      @default(now())
+  test           PlacementTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, testId])
+  @@index([studentId, completedAt])
+}
+
+//Internship and application management
 model Internship {
   id                    String        @id
   company               String

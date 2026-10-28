@@ -73,6 +73,7 @@ The verified role-specific route structure is:
 - `/student/internships`
 - `/student/applications`
 - `/student/assessments`
+- `/student/profile`
 
 ### Admin
 
@@ -80,6 +81,7 @@ The verified role-specific route structure is:
 - `/admin/internships`
 - `/admin/applications`
 - `/admin/assessments`
+- `/admin/student-directory`
 
 ### Super Admin
 
@@ -87,6 +89,7 @@ The verified role-specific route structure is:
 - `/super-admin/internships`
 - `/super-admin/applications`
 - `/super-admin/assessments`
+- `/super-admin/student-directory`
 
 ### Authentication
 

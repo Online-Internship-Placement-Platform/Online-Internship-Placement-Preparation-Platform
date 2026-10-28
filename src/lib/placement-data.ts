@@ -3,12 +3,21 @@ export type InternshipStatus = "Open" | "Closed";
 export const APPLICATION_STATUSES = ["Pending", "Under review", "Shortlisted", "Rejected"] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
-export type Student = { id: string; name: string; email: string; branch: string; cgpa: number; skills: string[]; avatar: string };
+export type StudentResume = { fileName: string; sizeBytes: number };
+export type Student = { id: string; name: string; email: string; branch: string; cgpa: number; yearOfStudy: number; skills: string[]; avatar: string; resume: StudentResume | null };
 export type Internship = { id: string; company: string; role: string; domain: string; location: string; skills: string[]; branches: string[]; minCgpa: number; deadline: string; stipend: string; description: string };
 export type Application = { id: string; internshipId: string; studentName: string; appliedOn: string; status: ApplicationStatus };
 export type Assessment = { name: string; domain: string; score: number; total: number; date: string };
 
-export const currentStudent: Student = { id: "stu-001", name: "Aarav Mehta", email: "aarav.mehta@university.edu", branch: "Computer Science", cgpa: 8.6, skills: ["React", "TypeScript", "SQL", "Figma"], avatar: "AM" };
+export const students: Student[] = [
+  { id: "stu-001", name: "Aarav Mehta", email: "aarav.mehta@university.edu", branch: "Computer Science", cgpa: 8.6, yearOfStudy: 3, skills: ["React", "TypeScript", "SQL", "Figma"], avatar: "AM", resume: null },
+  { id: "stu-002", name: "Ishita Shah", email: "ishita.shah@university.edu", branch: "Information Technology", cgpa: 8.2, yearOfStudy: 3, skills: ["React", "SQL", "Python"], avatar: "IS", resume: null },
+  { id: "stu-003", name: "Kabir Rao", email: "kabir.rao@university.edu", branch: "Computer Science", cgpa: 7.8, yearOfStudy: 4, skills: ["Node.js", "PostgreSQL", "TypeScript"], avatar: "KR", resume: null },
+  { id: "stu-004", name: "Maya Iyer", email: "maya.iyer@university.edu", branch: "Design", cgpa: 9.1, yearOfStudy: 2, skills: ["Figma", "Research", "Prototyping"], avatar: "MI", resume: null },
+  { id: "stu-005", name: "Rohan Patel", email: "rohan.patel@university.edu", branch: "Electrical Engineering", cgpa: 7.1, yearOfStudy: 1, skills: ["Python", "Excel", "Communication"], avatar: "RP", resume: null },
+  { id: "stu-006", name: "Leena Das", email: "leena.das@university.edu", branch: "Computer Science", cgpa: 8.0, yearOfStudy: 2, skills: ["React", "SQL", "CSS"], avatar: "LD", resume: null },
+];
+export const currentStudent: Student = students[0];
 export const internships: Internship[] = [
   { id: "int-001", company: "Northstar Labs", role: "Frontend Engineering Intern", domain: "Software Development", location: "Bengaluru · Hybrid", skills: ["React", "TypeScript", "CSS"], branches: ["Computer Science", "Information Technology"], minCgpa: 7.5, deadline: "2026-11-08", stipend: "₹35,000 / month", description: "Build polished product experiences with a small, collaborative engineering team." },
   { id: "int-002", company: "Aster Finance", role: "Data Analyst Intern", domain: "Data & Analytics", location: "Mumbai · On-site", skills: ["SQL", "Python", "Excel"], branches: ["Computer Science", "Information Technology", "Statistics"], minCgpa: 8, deadline: "2026-10-28", stipend: "₹30,000 / month", description: "Turn financial data into clear insights that help teams make better decisions." },

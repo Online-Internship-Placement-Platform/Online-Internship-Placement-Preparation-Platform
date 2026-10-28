@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/password-hash";
 import { validateStudentProfile } from "@/modules/students/profile-validation";
+import { validateStudentResume, type ValidatedStudentResume } from "@/modules/students/resume-file";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_RESUME_SIZE = 5 * 1024 * 1024;
@@ -87,7 +88,7 @@ export async function POST(request: Request) {
     }
 
     const resume = form.get("resume");
-    let resumeData: Uint8Array<ArrayBuffer> | undefined;
+    let validatedResume: ValidatedStudentResume | undefined;
 
     if (resume && !(resume instanceof File)) {
       return NextResponse.json(
@@ -97,29 +98,11 @@ export async function POST(request: Request) {
     }
 
     if (resume instanceof File && resume.size > 0) {
-      if (
-        resume.size > MAX_RESUME_SIZE ||
-        !resume.name.toLowerCase().endsWith(".pdf")
-      ) {
-        return NextResponse.json(
-          { error: "Resume must be a PDF of 5 MB or smaller." },
-          { status: 400 },
-        );
+      const validation = await validateStudentResume(resume);
+      if (!validation.ok) {
+        return NextResponse.json({ error: validation.error }, { status: 400 });
       }
-
-      const bytes = new Uint8Array(await resume.arrayBuffer());
-
-      if (
-        bytes.length < 5 ||
-        new TextDecoder().decode(bytes.slice(0, 5)) !== "%PDF-"
-      ) {
-        return NextResponse.json(
-          { error: "Resume must contain a valid PDF file." },
-          { status: 400 },
-        );
-      }
-
-      resumeData = bytes;
+      validatedResume = validation.resume;
     }
 
     const existing = await prisma.user.findUnique({
@@ -149,7 +132,7 @@ export async function POST(request: Request) {
             yearOfStudy:
               yearOfStudy as "FIRST" | "SECOND" | "THIRD" | "FOURTH",
             skills,
-            ...(resumeData ? { resumeData } : {}),
+            ...(validatedResume ?? {}),
           },
         },
       },
