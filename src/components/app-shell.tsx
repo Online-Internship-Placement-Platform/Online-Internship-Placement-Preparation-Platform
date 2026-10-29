@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -28,20 +29,44 @@ const navItems: Record<Role, { label: string; href: string }[]> = {
     { label: "Admin Account Requests", href: "/super-admin/account-requests" }
   ],
 };
-const roleNames: Record<Role, string> = { student: "Student", admin: "Admin", "super-admin": "Super Admin" };
-const home: Record<Role, string> = { student: "/student/dashboard", admin: "/admin/dashboard", "super-admin": "/super-admin/dashboard" };
 
-export function AppShell({ children, role = "student", title, eyebrow, identityName }: { children: ReactNode; role?: Role; title: string; eyebrow?: string; identityName?: string }) {
+const roleNames: Record<Role, string> = {
+  student: "Student",
+  admin: "Admin",
+  "super-admin": "Super Admin",
+};
+
+const home: Record<Role, string> = {
+  student: "/student/dashboard",
+  admin: "/admin/dashboard",
+  "super-admin": "/super-admin/dashboard",
+};
+
+export function AppShell({
+  children,
+  role = "student",
+  title,
+  eyebrow,
+  identityName,
+}: {
+  children: ReactNode;
+  role?: Role;
+  title: string;
+  eyebrow?: string;
+  identityName?: string;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [verifiedIdentityName, setVerifiedIdentityName] = useState<string>();
+
   useEffect(() => {
     let cancelled = false;
 
     async function checkSession() {
       try {
         const response = await fetch("/api/auth/me", { cache: "no-store" });
+
         if (!response.ok) {
           if (!cancelled) router.replace("/login");
           return;
@@ -50,6 +75,7 @@ export function AppShell({ children, role = "student", title, eyebrow, identityN
         const data = (await response.json()) as {
           user?: { role?: unknown; name?: unknown };
         };
+
         if (data.user?.role !== role) {
           if (!cancelled) router.replace("/login");
           return;
@@ -67,11 +93,21 @@ export function AppShell({ children, role = "student", title, eyebrow, identityN
     }
 
     void checkSession();
+
     return () => {
       cancelled = true;
     };
   }, [role, router]);
-  if (!ready) return <div className="min-h-screen bg-[var(--background)]" aria-label="Loading" />;
+
+  if (!ready) {
+    return (
+      <div
+        className="min-h-screen bg-[var(--background)]"
+        aria-label="Loading"
+      />
+    );
+  }
+
   const logout = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
@@ -80,6 +116,7 @@ export function AppShell({ children, role = "student", title, eyebrow, identityN
       router.refresh();
     }
   };
+
   const displayName = identityName ?? verifiedIdentityName ?? roleNames[role];
   const initials = identityName ?? verifiedIdentityName
     ? displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()
@@ -94,5 +131,34 @@ export function AppShell({ children, role = "student", title, eyebrow, identityN
     <main className="min-w-0 flex-1"><header className="flex items-center justify-between border-b border-[#e2e7e1] bg-[#fbfcfa] px-6 py-5 lg:px-10"><div><div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#9aa49b]">{eyebrow}</div><h1 className="mt-1 text-xl font-semibold tracking-tight">{title}</h1></div><div className="hidden items-center gap-3 sm:flex"><span className="rounded-lg border border-[#e2e7e1] bg-white px-3 py-2 text-xs text-[#657067]">October 18, 2026</span><div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#dcebe2] text-xs font-bold text-[#176b50]">{role === "student" ? "AM" : role === "admin" ? "ND" : "SA"}</div></div></header><div className="p-6 lg:p-10">{children}</div></main>
   </div>;
 }
-export function SectionHeading({ title, action }: { title: string; action?: ReactNode }) { return <div className="mb-4 flex items-center justify-between"><h2 className="text-sm font-bold tracking-tight">{title}</h2>{action}</div>; }
-export function StatusBadge({ status }: { status: string }) { const tone = status === "Open" || status === "Shortlisted" ? "bg-[#e6f2ec] text-[#176b50]" : status === "Closed" || status === "Rejected" ? "bg-[#fcedeb] text-[#b94b48]" : "bg-[#fff4df] text-[#a86618]"; return <span className={`inline-flex rounded-md px-2 py-1 text-[11px] font-bold ${tone}`}>{status}</span>; }
+
+export function SectionHeading({
+  title,
+  action,
+}: {
+  title: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="mb-4 flex items-center justify-between">
+      <h2 className="text-sm font-bold tracking-tight">{title}</h2>
+      {action}
+    </div>
+  );
+}
+
+export function StatusBadge({ status }: { status: string }) {
+  const tone =
+    status === "Open" || status === "Shortlisted"
+      ? "bg-[#e6f2ec] text-[#176b50]"
+      : status === "Closed" || status === "Rejected"
+        ? "bg-[#fcedeb] text-[#b94b48]"
+        : "bg-[#fff4df] text-[#a86618]";
+
+  return (
+    <span className={`inline-flex rounded-md px-2 py-1 text-[11px] font-bold ${tone}`}>
+      {status}
+    </span>
+  );
+}
+

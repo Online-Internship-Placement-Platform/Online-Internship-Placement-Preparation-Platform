@@ -1,9 +1,8 @@
-//Shreya
 
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Shreya
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// This is your Prisma schema file.
+// Learn more: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client"
@@ -14,7 +13,7 @@ datasource db {
   provider = "mysql"
 }
 
-//Account management
+// Account management
 enum Role {
   STUDENT     @map("student")
   ADMIN       @map("admin")
@@ -36,27 +35,37 @@ enum AccountRequestStatus {
 
 model User {
   id             Int             @id @default(autoincrement())
-  name           String?         @db.VarChar(150)
+  name           String?         @db.VarChar(191)
   email          String          @unique @db.VarChar(255)
   // Legacy accounts remain nullable until a password has been securely provisioned.
   passwordHash   String?         @db.VarChar(255)
   role           Role            @default(STUDENT)
   createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  updatedAt      DateTime        @default(now()) @updatedAt
   studentProfile StudentProfile?
+  posts          Post[]
   applications   Application[]
 }
 
 model StudentProfile {
-  id          Int         @id @default(autoincrement())
-  userId      Int         @unique
-  branch      String      @db.VarChar(150)
-  cgpa        Float
-  yearOfStudy YearOfStudy
-  skills      Json
-  resumeData  Bytes?      @db.MediumBlob
-  resumeFileName String?  @db.VarChar(255)
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             Int         @id @default(autoincrement())
+  userId         Int         @unique
+  branch         String      @db.VarChar(150)
+  cgpa           Float
+  yearOfStudy    YearOfStudy
+  skills         Json
+  resumeData     Bytes?      @db.MediumBlob
+  resumeFileName String?     @db.VarChar(255)
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Post {
+  id        Int     @id @default(autoincrement())
+  title     String
+  content   String? @db.Text
+  published Boolean @default(false)
+  author    User    @relation(fields: [authorId], references: [id])
+  authorId  Int
 }
 
 model AccountCreationRequest {
@@ -72,7 +81,7 @@ model AccountCreationRequest {
   @@index([status, createdAt])
 }
 
-//Placement testing
+// Placement testing
 enum PlacementDomain {
   WEB_DEVELOPMENT
   AI_ML
@@ -137,7 +146,8 @@ model TestQuestion {
 
 model TestAttempt {
   id             Int           @id @default(autoincrement())
-  studentId      String // email of the authenticated demo account
+  // Email of the authenticated demo account
+  studentId      String
   testId         Int
   correctCount   Int
   totalQuestions Int
@@ -150,7 +160,7 @@ model TestAttempt {
   @@index([studentId, completedAt])
 }
 
-//Internship and application management
+// Internship and application management
 model Internship {
   id                    String        @id
   company               String
@@ -177,4 +187,3 @@ model Application {
   @@unique([studentId, internshipId])
   @@index([internshipId])
 }
-
