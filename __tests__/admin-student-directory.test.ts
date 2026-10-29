@@ -43,19 +43,25 @@ describe("GET /api/admin/students", () => {
 
     const response = await GET(new Request("http://localhost/api/admin/students?name=Aarav"));
 
+    
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      students: [{
-        id: "11",
-        name: "Aarav Mehta",
-        email: "aarav@example.edu",
-        branch: "Computer Science",
-        cgpa: 8.7,
-        yearOfStudy: 3,
-        skills: ["React", "SQL"],
-      }],
+      students: [
+        {
+          id: "11",
+          name: "Aarav Mehta",
+          email: "aarav@example.edu",
+          branch: "Computer Science",
+          cgpa: 8.7,
+          yearOfStudy: 3,
+          skills: ["React", "SQL"],
+          avatar: "AM",
+          resume: null,
+        },
+      ],
       total: 1,
     });
+
   });
 
   it("rejects non-admin access", async () => {
