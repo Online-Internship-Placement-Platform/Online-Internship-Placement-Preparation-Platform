@@ -4,9 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "prisma generate",
     "dev": "next dev",
+    "prebuild": "prisma generate",
     "build": "next build",
     "seed:demo": "tsx prisma/seed.ts",
+    "seed:internships": "tsx prisma/seed.ts --internships-only",
     "initialize:demo-passwords": "tsx prisma/initialize-demo-passwords.ts",
     "start": "next start",
     "lint": "eslint",

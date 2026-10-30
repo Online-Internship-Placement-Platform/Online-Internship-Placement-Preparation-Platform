@@ -1,5 +1,5 @@
 import type { Role } from "../../../generated/prisma/client";
-import { hashPassword } from "@/lib/password-hash";
+import { hashPassword, verifyPassword } from "@/lib/password-hash";
 
 export type DemoStudentProfile = {
   branch: string;
@@ -32,7 +32,12 @@ export type DemoAccountStore = {
     passwordHash: string;
     studentProfile?: DemoStudentProfile;
   }): Promise<void>;
-  updatePasswordHash(id: number, passwordHash: string): Promise<void>;
+  updatePasswordHash(
+    id: number,
+    passwordHash: string,
+    role: Role,
+    previousPasswordHash: string | null,
+  ): Promise<void>;
   createStudentProfile(userId: number, profile: DemoStudentProfile): Promise<void>;
 };
 
@@ -60,8 +65,14 @@ export async function ensureDemoAccount(
   if (existing.role !== account.role) return "role-mismatch";
 
   let changed = false;
-  if (!existing.passwordHash) {
-    await store.updatePasswordHash(existing.id, await hashPassword(account.password));
+  const passwordMatches = await verifyPassword(account.password, existing.passwordHash);
+  if (!passwordMatches) {
+    await store.updatePasswordHash(
+      existing.id,
+      await hashPassword(account.password),
+      account.role,
+      existing.passwordHash,
+    );
     changed = true;
   }
   if (account.studentProfile && !existing.studentProfile) {

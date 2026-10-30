@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { deleteResume, storeResume, validateResume } from "@/lib/private-resume-storage";
 import { applicationResumeFilter } from "@/modules/applications/application-access";
 import type { AdminApplicationFilters } from "@/modules/applications/application-validation";
-import { checkEligibility, getEligibilityChecks } from "@/modules/applications/eligibility";
+import { evaluateStudentEligibility, isInternshipOpenForApplications, normalizeStudentSkills } from "@/modules/applications/eligibility";
 
 type StudentProfile = {
   id: number;
@@ -16,6 +16,7 @@ type InternshipRequirements = {
   id: string;
   company: string;
   role: string;
+  domain: string;
   applicationDeadline: Date;
   published: boolean;
   acceptingApplications: boolean;
@@ -29,7 +30,7 @@ function eligibilityProfile(student: StudentProfile) {
   return {
     branch: profile?.branch ?? "",
     cgpa: profile?.cgpa ?? Number.NaN,
-    skills: Array.isArray(profile?.skills) && profile.skills.every((skill) => typeof skill === "string") ? profile.skills : [],
+    skills: profile?.skills ?? [],
   };
 }
 
@@ -47,7 +48,7 @@ export async function getApplicationContext(internshipId: string, userId: number
     prisma.internship.findUnique({
       where: { id: internshipId },
       select: {
-        id: true, company: true, role: true, applicationDeadline: true, published: true,
+        id: true, company: true, role: true, domain: true, applicationDeadline: true, published: true,
         acceptingApplications: true, minCgpa: true, eligibleBranches: true, requiredSkills: true,
       },
     }),
@@ -62,17 +63,73 @@ export async function getApplicationContext(internshipId: string, userId: number
   ]);
 
   if (!internship) return { kind: "internship-not-found" as const };
-  if (!student || student.role !== "STUDENT" || !student.studentProfile) return { kind: "student-not-found" as const };
+  if (!student || student.role !== "STUDENT") return { kind: "student-not-found" as const };
 
-  const profile = eligibilityProfile(student);
+  const profile = student.studentProfile ? eligibilityProfile(student) : { branch: "", cgpa: Number.NaN, skills: null };
   const requirements = eligibilityRequirements(internship);
   return {
     kind: "available" as const,
     internship,
     student,
     application,
-    eligibility: checkEligibility(profile, requirements),
-    eligibilityChecks: getEligibilityChecks(profile, requirements),
+    ...evaluateStudentEligibility(student.studentProfile ? profile : null, requirements),
+  };
+}
+
+/** Returns only published database listings and their authenticated student's eligibility. */
+export async function listStudentInternshipEligibility(userId: number) {
+  const [student, internships] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true, studentProfile: { select: { branch: true, cgpa: true, skills: true, yearOfStudy: true } } },
+    }),
+    prisma.internship.findMany({
+      where: { published: true },
+      orderBy: [{ applicationDeadline: "asc" }, { company: "asc" }],
+      select: {
+        id: true, company: true, role: true, domain: true, applicationDeadline: true, published: true,
+        acceptingApplications: true, minCgpa: true, eligibleBranches: true, requiredSkills: true,
+      },
+    }),
+  ]);
+
+  if (!student || student.role !== "STUDENT") return { kind: "student-not-found" as const };
+  const profile = student.studentProfile;
+  const profileComplete = Boolean(
+    profile && typeof profile.branch === "string" && profile.branch.trim() && Number.isFinite(profile.cgpa) &&
+    ["FIRST", "SECOND", "THIRD", "FOURTH"].includes(profile.yearOfStudy) &&
+    normalizeStudentSkills(profile.skills) !== null,
+  );
+  const normalizedStudent = profile
+    ? eligibilityProfile({ ...student, name: null, email: "", studentProfile: profile })
+    : { branch: "", cgpa: Number.NaN, skills: [] };
+
+  return {
+    kind: "available" as const,
+    profile: profile ? { branch: profile.branch, cgpa: profile.cgpa, yearOfStudy: profile.yearOfStudy, skills: normalizedStudent.skills } : null,
+    profileComplete,
+    internships: internships.map((internship) => {
+      const requirements = eligibilityRequirements(internship);
+      const { eligibility, eligibilityChecks } = evaluateStudentEligibility(profile ? normalizedStudent : null, requirements);
+      const isOpen = isInternshipOpenForApplications(
+        internship.published,
+        internship.acceptingApplications,
+        internship.applicationDeadline.toISOString().slice(0, 10),
+      );
+      return {
+        id: internship.id,
+        company: internship.company,
+        role: internship.role,
+        domain: internship.domain,
+        applicationDeadline: internship.applicationDeadline.toISOString().slice(0, 10),
+        minCgpa: internship.minCgpa,
+        eligibleBranches: requirements.eligibleBranches,
+        requiredSkills: requirements.requiredSkills,
+        isOpen,
+        eligibility,
+        eligibilityChecks,
+      };
+    }),
   };
 }
 

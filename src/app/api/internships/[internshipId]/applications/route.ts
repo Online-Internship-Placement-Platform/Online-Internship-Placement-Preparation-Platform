@@ -16,6 +16,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     const context = await getApplicationContext(internshipId, session.userId);
     if (context.kind === "internship-not-found") return NextResponse.json({ error: "This internship could not be found." }, { status: 404 });
     if (context.kind === "student-not-found") return NextResponse.json({ error: "Your student account could not be verified." }, { status: 403 });
+    if (!context.internship.published) return NextResponse.json({ error: "This internship is not published." }, { status: 404 });
 
     const isOpen = isInternshipOpenForApplications(
       context.internship.published,
@@ -25,6 +26,16 @@ export async function GET(_request: Request, { params }: RouteContext) {
     const alreadyApplied = Boolean(context.application);
     const canApply = isOpen && !alreadyApplied && context.eligibility.eligible;
     return NextResponse.json({
+      internship: {
+        id: context.internship.id,
+        company: context.internship.company,
+        role: context.internship.role,
+        domain: context.internship.domain,
+        applicationDeadline: context.internship.applicationDeadline.toISOString().slice(0, 10),
+        minCgpa: context.internship.minCgpa,
+        eligibleBranches: context.internship.eligibleBranches.split("\n").map((value) => value.trim()).filter(Boolean),
+        requiredSkills: context.internship.requiredSkills.split("\n").map((value) => value.trim()).filter(Boolean),
+      },
       eligible: context.eligibility.eligible,
       canApply,
       isOpen,

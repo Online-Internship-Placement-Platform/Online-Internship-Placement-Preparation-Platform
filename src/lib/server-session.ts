@@ -1,6 +1,7 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { toSessionRole } from "@/modules/authentication/authentication";
 import type { Role } from "@/lib/placement-data";
@@ -59,6 +60,9 @@ export async function getServerSession(): Promise<ServerSession | null> {
     const payload: unknown = JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
     if (typeof payload !== "object" || payload === null) return null;
     const record = payload as Record<string, unknown>;
+    // Session expiry is time-dependent. Defer validation until request time so
+    // Cache Components never evaluate Date.now() while prerendering a page.
+    await connection();
     if (
       !Number.isInteger(record.userId) || (record.userId as number) <= 0 ||
       (record.role !== "student" && record.role !== "admin" && record.role !== "super-admin") ||

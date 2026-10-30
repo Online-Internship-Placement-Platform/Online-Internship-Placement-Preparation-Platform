@@ -1,7 +1,7 @@
 export interface StudentEligibilityProfile {
   cgpa: number;
   branch: string;
-  skills: readonly string[];
+  skills: unknown;
 }
 
 export interface InternshipEligibilityRequirements {
@@ -13,12 +13,14 @@ export interface InternshipEligibilityRequirements {
 
 export interface EligibilityResult {
   eligible: boolean;
+  status: "eligible" | "ineligible" | "undetermined";
   reasons: string[];
 }
 
 export interface EligibilityCheck {
   criterion: string;
   eligible: boolean;
+  determinate: boolean;
   reasons: string[];
 }
 
@@ -39,6 +41,27 @@ function normalizeStringList(values: unknown): string[] | null {
   }
 
   return values.map(normalizeName);
+}
+
+export function normalizeStudentSkills(value: unknown): string[] | null {
+  const normalizePreservingCase = (skills: unknown): string[] | null => {
+    if (!Array.isArray(skills) || !skills.every((skill) => typeof skill === "string" && skill.trim().length > 0)) return null;
+    return skills.map((skill) => (skill as string).trim());
+  };
+  if (Array.isArray(value)) return normalizePreservingCase(value);
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return [];
+  if (trimmed.startsWith("[")) {
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return normalizePreservingCase(parsed);
+    } catch {
+      return null;
+    }
+    return null;
+  }
+  return normalizePreservingCase(trimmed.split(/[\n,;|]/).map((skill) => skill.trim()).filter(Boolean));
 }
 
 function parseDeadline(value: string | Date): Date | null {
@@ -84,7 +107,32 @@ export function checkEligibility(
 ): EligibilityResult {
   const checks = getEligibilityChecks(student, internship, now);
   const reasons = checks.flatMap((check) => check.reasons);
-  return { eligible: checks.every((check) => check.eligible), reasons };
+  const eligible = checks.every((check) => check.eligible);
+  const status = eligible
+    ? "eligible"
+    : checks.some((check) => !check.determinate)
+      ? "undetermined"
+      : "ineligible";
+  return { eligible, status, reasons };
+}
+
+export function evaluateStudentEligibility(
+  student: StudentEligibilityProfile | null,
+  internship: InternshipEligibilityRequirements,
+  now: Date = new Date(),
+) {
+  if (!student) {
+    const eligibility: EligibilityResult = {
+      eligible: false,
+      status: "undetermined",
+      reasons: ["Your student profile could not be retrieved."],
+    };
+    return { eligibility, eligibilityChecks: [] as EligibilityCheck[] };
+  }
+  return {
+    eligibility: checkEligibility(student, internship, now),
+    eligibilityChecks: getEligibilityChecks(student, internship, now),
+  };
 }
 
 /** Returns criterion-level results for displaying the same checks used by submission. */
@@ -101,7 +149,7 @@ export function getEligibilityChecks(
   if (!studentCgpaIsValid) cgpaReasons.push("Student CGPA must be a finite number from 0 to 10.");
   if (!minimumCgpaIsValid) cgpaReasons.push("Internship minimum CGPA must be a finite number from 0 to 10.");
   else if (studentCgpaIsValid && student.cgpa < internship.minCgpa) cgpaReasons.push("Student CGPA is below the internship minimum.");
-  checks.push({ criterion: "CGPA", eligible: cgpaReasons.length === 0, reasons: cgpaReasons });
+  checks.push({ criterion: "CGPA", eligible: cgpaReasons.length === 0, determinate: studentCgpaIsValid && minimumCgpaIsValid, reasons: cgpaReasons });
 
   const studentBranch = typeof student.branch === "string" ? normalizeName(student.branch) : "";
   const eligibleBranches = normalizeStringList(internship.eligibleBranches);
@@ -109,20 +157,20 @@ export function getEligibilityChecks(
   if (studentBranch.length === 0) branchReasons.push("Student branch is required.");
   if (eligibleBranches === null || eligibleBranches.length === 0) branchReasons.push("Internship must list at least one eligible branch.");
   else if (studentBranch.length > 0 && !eligibleBranches.includes("any branch") && !eligibleBranches.includes(studentBranch)) branchReasons.push("Student branch is not eligible for this internship.");
-  checks.push({ criterion: "Branch", eligible: branchReasons.length === 0, reasons: branchReasons });
+  checks.push({ criterion: "Branch", eligible: branchReasons.length === 0, determinate: studentBranch.length > 0 && eligibleBranches !== null && eligibleBranches.length > 0, reasons: branchReasons });
 
-  const studentSkills = normalizeStringList(student.skills);
+  const studentSkills = normalizeStudentSkills(student.skills)?.map(normalizeName) ?? null;
   const requiredSkills = normalizeStringList(internship.requiredSkills);
   if (studentSkills === null) {
-    checks.push({ criterion: "Skills", eligible: false, reasons: ["Student skills must be a valid list of skill names."] });
+    checks.push({ criterion: "Skills", eligible: false, determinate: false, reasons: ["Student skills must be a valid list of skill names."] });
   } else if (requiredSkills === null) {
-    checks.push({ criterion: "Skills", eligible: false, reasons: ["Internship required skills must be a valid list of skill names."] });
+    checks.push({ criterion: "Skills", eligible: false, determinate: false, reasons: ["Internship required skills must be a valid list of skill names."] });
   } else if (requiredSkills.length === 0) {
-    checks.push({ criterion: "Skills", eligible: true, reasons: [] });
+    checks.push({ criterion: "Skills", eligible: true, determinate: true, reasons: [] });
   } else {
     for (const skill of requiredSkills) {
       const eligible = studentSkills.includes(skill);
-      checks.push({ criterion: skill, eligible, reasons: eligible ? [] : [`Student is missing required skill: ${skill}.`] });
+      checks.push({ criterion: skill, eligible, determinate: true, reasons: eligible ? [] : [`Student is missing required skill: ${skill}.`] });
     }
   }
 
@@ -134,7 +182,7 @@ export function getEligibilityChecks(
   } else if (deadline !== null && !isApplicationDeadlineOpen(deadline, now)) {
     deadlineReasons.push("Application deadline has passed.");
   }
-  checks.push({ criterion: "Deadline", eligible: deadlineReasons.length === 0, reasons: deadlineReasons });
+  checks.push({ criterion: "Deadline", eligible: deadlineReasons.length === 0, determinate: deadline !== null && now instanceof Date && !Number.isNaN(now.getTime()), reasons: deadlineReasons });
 
   return checks;
 }
