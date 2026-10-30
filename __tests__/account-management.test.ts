@@ -41,7 +41,7 @@ vi.mock("@/lib/server-session", () => ({
   clearServerSession: mocks.clearSession,
 }));
 
-import { POST as createAdminRequest } from "@/app/api/auth/account-requests/route";
+import { GET as checkAdminRequestStatus, PATCH as resubmitAdminRequest, POST as createAdminRequest } from "@/app/api/auth/account-requests/route";
 import { DELETE as deleteAccount } from "@/app/api/auth/delete-account/route";
 import { GET as listAdminRequests } from "@/app/api/admin/account-requests/route";
 import { POST as approveRequest } from "@/app/api/admin/account-requests/[id]/approve/route";
@@ -155,6 +155,48 @@ describe("Issue #9 — Admin account requests", () => {
 
     expect(response.status).toBe(403);
     expect(mocks.requestFindMany).not.toHaveBeenCalled();
+  });
+
+  it("returns the status of an admin request by normalized email", async () => {
+    const updatedAt = new Date("2026-10-28T12:00:00.000Z");
+    mocks.requestFindUnique.mockResolvedValue({ status: "REJECTED", updatedAt });
+
+    const response = await checkAdminRequestStatus(new Request("http://localhost/api/auth/account-requests?email=ADMIN%40example.com"));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ status: "REJECTED", updatedAt: updatedAt.toISOString() });
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(mocks.requestFindUnique).toHaveBeenCalledWith({
+      where: { email: "admin@example.com" },
+      select: { status: true, updatedAt: true },
+    });
+  });
+
+  it("validates status lookup email and returns not found for unknown requests", async () => {
+    const invalid = await checkAdminRequestStatus(new Request("http://localhost/api/auth/account-requests?email=invalid"));
+    expect(invalid.status).toBe(400);
+
+    mocks.requestFindUnique.mockResolvedValue(null);
+    const missing = await checkAdminRequestStatus(new Request("http://localhost/api/auth/account-requests?email=none%40example.com"));
+    expect(missing.status).toBe(404);
+  });
+
+  it("resubmits only a rejected admin request by setting it back to pending", async () => {
+    const response = await resubmitAdminRequest(jsonRequest({ email: "ADMIN@example.com" }));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ status: "PENDING" });
+    expect(mocks.requestUpdateMany).toHaveBeenCalledWith({
+      where: { email: "admin@example.com", role: "ADMIN", status: "REJECTED" },
+      data: { status: "PENDING" },
+    });
+  });
+
+  it("does not resubmit requests that are not rejected", async () => {
+    mocks.requestUpdateMany.mockResolvedValue({ count: 0 });
+    const response = await resubmitAdminRequest(jsonRequest({ email: "admin@example.com" }));
+
+    expect(response.status).toBe(409);
   });
 });
 
