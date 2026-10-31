@@ -282,8 +282,14 @@ const demoAccountStore: DemoAccountStore = {
       },
     });
   },
-  async updatePasswordHash(id, passwordHash) {
-    await prisma.user.update({ where: { id }, data: { passwordHash } });
+  async updatePasswordHash(id, passwordHash, role, previousPasswordHash) {
+    const result = await prisma.user.updateMany({
+      where: { id, role, passwordHash: previousPasswordHash },
+      data: { passwordHash },
+    });
+    if (result.count !== 1) {
+      throw new Error("Demo account changed during password repair; no unrelated account data was modified.");
+    }
   },
   async createStudentProfile(userId, profile) {
     await prisma.studentProfile.create({ data: { userId, ...profile } });
@@ -295,12 +301,71 @@ const demoAccountStore: DemoAccountStore = {
 // ---------------------------------------------------------------------------
 
 const internships = [
-  { id: "int-001", company: "Northstar Labs", role: "Frontend Engineering Intern", applicationDeadline: "2026-11-08", minCgpa: 7.5, eligibleBranches: ["Computer Science", "Information Technology"], requiredSkills: ["React", "TypeScript", "CSS"] },
-  { id: "int-002", company: "Aster Finance", role: "Data Analyst Intern", applicationDeadline: "2026-10-28", minCgpa: 8, eligibleBranches: ["Computer Science", "Information Technology", "Statistics"], requiredSkills: ["SQL", "Python", "Excel"] },
-  { id: "int-003", company: "Studio Kora", role: "Product Design Intern", applicationDeadline: "2026-11-18", minCgpa: 7, eligibleBranches: ["Any branch"], requiredSkills: ["Figma", "Research", "Prototyping"] },
-  { id: "int-004", company: "Cloudline Systems", role: "Backend Developer Intern", applicationDeadline: "2026-10-20", minCgpa: 8.5, eligibleBranches: ["Computer Science", "Information Technology"], requiredSkills: ["Node.js", "PostgreSQL", "REST APIs"] },
-  { id: "int-005", company: "GreenGrid Energy", role: "Business Strategy Intern", applicationDeadline: "2026-09-30", minCgpa: 7.5, eligibleBranches: ["Any branch"], requiredSkills: ["Research", "Excel", "Communication"] },
+  { id: "int-001", company: "Northstar Labs", role: "Frontend Engineering Intern", domain: "Software Development", applicationDeadline: "2026-11-08", minCgpa: 7.5, eligibleBranches: ["Computer Science", "Information Technology"], requiredSkills: ["React", "TypeScript", "CSS"] },
+  { id: "int-002", company: "Aster Finance", role: "Data Analyst Intern", domain: "Data & Analytics", applicationDeadline: "2026-10-28", minCgpa: 8, eligibleBranches: ["Computer Science", "Information Technology", "Statistics"], requiredSkills: ["SQL", "Python", "Excel"] },
+  { id: "int-003", company: "Studio Kora", role: "Product Design Intern", domain: "Design", applicationDeadline: "2026-11-18", minCgpa: 7, eligibleBranches: ["Any branch"], requiredSkills: ["Figma", "Research", "Prototyping"] },
+  { id: "int-004", company: "Cloudline Systems", role: "Backend Developer Intern", domain: "Software Development", applicationDeadline: "2026-10-20", minCgpa: 8.5, eligibleBranches: ["Computer Science", "Information Technology"], requiredSkills: ["Node.js", "PostgreSQL", "REST APIs"] },
+  { id: "int-005", company: "GreenGrid Energy", role: "Business Strategy Intern", domain: "Business", applicationDeadline: "2026-09-30", minCgpa: 7.5, eligibleBranches: ["Any branch"], requiredSkills: ["Research", "Excel", "Communication"] },
 ];
+
+// ---------------------------------------------------------------------------
+// Recommended video data
+// ---------------------------------------------------------------------------
+
+const recommendedVideos = [
+  {
+    id: "recommended-video-javascript-foundations",
+    title: "Learn JavaScript - Full Course for Beginners",
+    youtubeId: "PkZNo7MFNFg",
+    channelName: "freeCodeCamp.org",
+    description: "A complete beginner course covering JavaScript fundamentals that are useful for frontend internship interviews and practical development work.",
+    category: "SOFTWARE_DEVELOPMENT",
+  },
+  {
+    id: "recommended-video-sql-fundamentals",
+    title: "SQL Tutorial - Full Database Course for Beginners",
+    youtubeId: "HXV3zeQKqGY",
+    channelName: "freeCodeCamp.org",
+    description: "A beginner-friendly database course covering SQL queries and relational database concepts used in data and analytics roles.",
+    category: "DATA_ANALYTICS",
+  },
+  {
+    id: "recommended-video-figma-basics",
+    title: "Introducing Figma: A Beginners Tutorial",
+    youtubeId: "JGLfyTDgfDc",
+    channelName: "Rino de Boer",
+    description: "An introduction to Figma essentials, including layout and visual design tools relevant to UI/UX portfolios and design internships.",
+    category: "DESIGN_UI_UX",
+  },
+  {
+    id: "recommended-video-logical-reasoning-placement",
+    title: "Solved Logical Reasoning Placement Paper",
+    youtubeId: "SReCrSIhnfc",
+    channelName: "CareerRide",
+    description: "Worked logical reasoning questions and shortcuts for campus placement tests and job interviews.",
+    category: "APTITUDE_LOGICAL_REASONING",
+  },
+] as const;
+
+async function seedRecommendedVideos() {
+  let inserted = 0;
+  let skipped = 0;
+
+  for (const video of recommendedVideos) {
+    const existing = await prisma.recommendedVideo.findUnique({
+      where: { youtubeId: video.youtubeId },
+      select: { id: true },
+    });
+    if (existing) {
+      skipped++;
+      continue;
+    }
+    await prisma.recommendedVideo.create({ data: video });
+    inserted++;
+  }
+
+  console.log(`Recommended videos: ${inserted} inserted, ${skipped} already existed.`);
+}
 
 // ---------------------------------------------------------------------------
 // Placement-test seed function (Issue #27 — 150 questions + 15 default tests)
@@ -392,7 +457,7 @@ async function seedDemoAccounts() {
     if (result === "role-mismatch") {
       console.warn(`Skipped ${account.email}: an account with a different role already exists.`);
     } else {
-      console.info(`${result === "created" ? "Created" : result === "completed" ? "Completed missing demo data for" : "Kept existing"} ${account.email}.`);
+      console.info(`${result === "created" ? "Created" : result === "completed" ? "Repaired or completed demo data for" : "Kept existing"} ${account.email}.`);
     }
   }
 
@@ -402,6 +467,7 @@ async function seedDemoAccounts() {
       update: {
         company: internship.company,
         role: internship.role,
+        domain: internship.domain,
         applicationDeadline: new Date(`${internship.applicationDeadline}T00:00:00.000Z`),
         minCgpa: internship.minCgpa,
         eligibleBranches: internship.eligibleBranches.join("\n"),
@@ -412,12 +478,28 @@ async function seedDemoAccounts() {
         applicationDeadline: new Date(`${internship.applicationDeadline}T00:00:00.000Z`),
         eligibleBranches: internship.eligibleBranches.join("\n"),
         requiredSkills: internship.requiredSkills.join("\n"),
-        published: true,
-        acceptingApplications: true,
+        published: false,
+        acceptingApplications: false,
       },
     });
   }
   console.log("Demo accounts and internships seeded.");
+}
+
+/** Inserts only missing sample internship rows, as unpublished drafts. */
+async function seedInternshipsOnly() {
+  const result = await prisma.internship.createMany({
+    data: internships.map((internship) => ({
+      ...internship,
+      applicationDeadline: new Date(`${internship.applicationDeadline}T00:00:00.000Z`),
+      eligibleBranches: internship.eligibleBranches.join("\n"),
+      requiredSkills: internship.requiredSkills.join("\n"),
+      published: false,
+      acceptingApplications: false,
+    })),
+    skipDuplicates: true,
+  });
+  console.log(`Added ${result.count} missing sample internship record(s) as drafts.`);
 }
 
 // ---------------------------------------------------------------------------
@@ -425,7 +507,12 @@ async function seedDemoAccounts() {
 // ---------------------------------------------------------------------------
 
 async function main() {
+  if (process.argv.includes("--internships-only")) {
+    await seedInternshipsOnly();
+    return;
+  }
   await seedPlacementTests();
+  await seedRecommendedVideos();
   await seedDemoAccounts();
   console.log("All seeds complete.");
 }

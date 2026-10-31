@@ -3,10 +3,20 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
 import { AppShell, SectionHeading, StatusBadge } from "@/components/app-shell";
-import { formatDate, getInternship, getInternshipStatus } from "@/lib/placement-data";
+import { formatDate } from "@/lib/placement-data";
 
 type EligibilityCheck = { criterion: string; eligible: boolean; reasons: string[] };
 type ApplicationAvailability = {
+  internship?: {
+    id: string;
+    company: string;
+    role: string;
+    domain: string;
+    applicationDeadline: string;
+    minCgpa: number;
+    eligibleBranches: string[];
+    requiredSkills: string[];
+  };
   canApply: boolean;
   isOpen: boolean;
   alreadyApplied: boolean;
@@ -21,7 +31,6 @@ type ApplicationAvailability = {
 const MAX_RESUME_SIZE = 5 * 1024 * 1024;
 
 export function InternshipDetail({ id }: { id: string }) {
-  const internship = getInternship(id);
   const [availability, setAvailability] = useState<ApplicationAvailability | null>(null);
   const [availabilityError, setAvailabilityError] = useState("");
   const [editingSkills, setEditingSkills] = useState(false);
@@ -143,10 +152,10 @@ export function InternshipDetail({ id }: { id: string }) {
     }
   }
 
-  if (!internship) return <AppShell title="Internship not found"><div className="rounded-xl border border-[#e2e7e1] bg-white p-10 text-center"><h2 className="font-semibold">This opportunity is no longer available.</h2><Link href="/student/internships" className="mt-4 inline-block text-sm font-semibold text-[#176b50]">Back to directory</Link></div></AppShell>;
+  const internship = availability?.internship;
+  if (!internship) return <AppShell title="Internship details" eyebrow="Opportunities"><div className="rounded-xl border border-[#e2e7e1] bg-white p-10 text-center"><h2 className="font-semibold">{availabilityError || "Loading internship details…"}</h2><Link href="/student/internships" className="mt-4 inline-block text-sm font-semibold text-[#176b50]">Back to directory</Link></div></AppShell>;
 
-  const open = getInternshipStatus(internship.deadline) === "Open";
-  const displayedOpen = availability?.isOpen ?? open;
+  const displayedOpen = availability?.isOpen ?? false;
   const cgpaCheck = availability?.eligibilityChecks?.find((check) => check.criterion === "CGPA");
   const branchCheck = availability?.eligibilityChecks?.find((check) => check.criterion === "Branch");
   const requirementChecks = availability?.eligibilityChecks?.filter((check) => check.criterion !== "Deadline" && check.criterion !== "CGPA" && check.criterion !== "Branch") ?? [];
@@ -156,18 +165,18 @@ export function InternshipDetail({ id }: { id: string }) {
     <Link href="/student/internships" className="mb-6 inline-block text-xs font-semibold text-[#176b50]">← Back to directory</Link>
     <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
       <div className="rounded-xl border border-[#e2e7e1] bg-white p-7">
-        <div className="mb-8 flex items-start justify-between"><div><div className="mb-2 text-sm font-semibold text-[#176b50]">{internship.company}</div><h2 className="text-2xl font-semibold tracking-tight">{internship.role}</h2><p className="mt-2 text-sm text-[#6e786f]">{internship.location} · {internship.stipend}</p></div><StatusBadge status={displayedOpen ? "Open" : "Closed"} /></div>
-        <SectionHeading title="About the role" /><p className="mb-8 text-sm leading-7 text-[#5e6b61]">{internship.description} You will partner with experienced mentors, contribute to meaningful projects, and learn how high-performing teams ship work.</p>
-        <SectionHeading title="Required skills" /><div className="mb-8 flex flex-wrap gap-2">{internship.skills.map((skill) => <span className="rounded-lg border border-[#dce5de] bg-[#f7faf7] px-3 py-2 text-xs font-medium text-[#405147]" key={skill}>{skill}</span>)}</div>
+        <div className="mb-8 flex items-start justify-between"><div><div className="mb-2 text-sm font-semibold text-[#176b50]">{internship.company}</div><h2 className="text-2xl font-semibold tracking-tight">{internship.role}</h2><p className="mt-2 text-sm text-[#6e786f]">{internship.domain}</p></div><StatusBadge status={displayedOpen ? "Open" : "Closed"} /></div>
+        <SectionHeading title="About the role" /><p className="mb-8 text-sm leading-7 text-[#5e6b61]">Review the eligibility requirements and application deadline for this opportunity.</p>
+        <SectionHeading title="Required skills" /><div className="mb-8 flex flex-wrap gap-2">{internship.requiredSkills.map((skill) => <span className="rounded-lg border border-[#dce5de] bg-[#f7faf7] px-3 py-2 text-xs font-medium text-[#405147]" key={skill}>{skill}</span>)}</div>
         <div className="mb-3 flex items-center justify-between"><SectionHeading title="Eligibility requirements" />{!editingSkills && <button type="button" onClick={() => { setDraftSkills([...savedSkills]); setEditingSkills(true); setSkillMessage(""); setSkillError(""); }} className="text-xs font-semibold text-[#176b50] underline">Edit skills</button>}</div>
-        <div className="grid gap-3 sm:grid-cols-2"><Requirement label="Eligible branches" value={internship.branches.join(", ")} okay={branchCheck?.eligible === true} /><Requirement label="Minimum CGPA" value={`${internship.minCgpa} / 10`} okay={cgpaCheck?.eligible === true} /></div>
+        <div className="grid gap-3 sm:grid-cols-2"><Requirement label="Eligible branches" value={internship.eligibleBranches.join(", ")} okay={branchCheck?.eligible === true} /><Requirement label="Minimum CGPA" value={`${internship.minCgpa} / 10`} okay={cgpaCheck?.eligible === true} /></div>
         {availability && <section className="mt-5 rounded-lg border border-[#e2e7e1] bg-[#fafbf9] p-4" aria-live="polite">
           <h3 className="mb-3 text-sm font-semibold">Your eligibility</h3>
           <ul className="space-y-2 text-xs">
             <EligibilityRow label={`CGPA ${availability.student?.cgpa ?? "Not set"} / 10 (minimum ${internship.minCgpa} / 10)`} eligible={cgpaCheck?.eligible === true} reason={cgpaCheck?.reasons.join(" ")} />
             <EligibilityRow label={`Branch: ${availability.student?.branch || "Not set"}`} eligible={branchCheck?.eligible === true} reason={branchCheck?.reasons.join(" ")} />
             {requirementChecks.map((check) => {
-              const skillLabel = internship.skills.find((skill) => skill.trim().toLocaleLowerCase() === check.criterion) ?? check.criterion;
+              const skillLabel = internship.requiredSkills.find((skill) => skill.trim().toLocaleLowerCase() === check.criterion) ?? check.criterion;
               return <EligibilityRow key={check.criterion} label={`Skill: ${skillLabel}`} eligible={check.eligible} reason={check.reasons.join(" ")} />;
             })}
           </ul>
@@ -185,7 +194,7 @@ export function InternshipDetail({ id }: { id: string }) {
 
       <aside><div className="sticky top-6 rounded-xl border border-[#e2e7e1] bg-white p-6">
         <div className="mb-5 text-xs font-bold uppercase tracking-[0.12em] text-[#89948b]">Your application</div>
-        <div className="mb-5 rounded-lg bg-[#fafbf9] p-4"><div className="flex justify-between text-xs"><span className="text-[#7b857c]">Application deadline</span><span className="font-semibold">{formatDate(internship.deadline)}</span></div><div className="mt-3 flex justify-between text-xs"><span className="text-[#7b857c]">Your CGPA</span><span className="font-semibold">{availability?.student?.cgpa ?? "—"} / 10</span></div></div>
+        <div className="mb-5 rounded-lg bg-[#fafbf9] p-4"><div className="flex justify-between text-xs"><span className="text-[#7b857c]">Application deadline</span><span className="font-semibold">{formatDate(internship.applicationDeadline)}</span></div><div className="mt-3 flex justify-between text-xs"><span className="text-[#7b857c]">Your CGPA</span><span className="font-semibold">{availability?.student?.cgpa ?? "—"} / 10</span></div></div>
         {submitted || availability?.alreadyApplied ? <div className="rounded-lg bg-[#e6f2ec] p-4 text-center text-sm font-semibold text-[#176b50]">{submitted ? "Application submitted successfully." : "You have already applied."} Status: {availability?.applicationStatus ?? "Pending"}.{resumeUrl && <a href={resumeUrl} className="mt-2 block text-xs underline">View submitted resume</a>}</div> : <>
           {!formOpen ? <div className="space-y-3">{availability?.canApply && <div><input id="resume-before-application" type="file" accept="application/pdf,.pdf" onChange={(event) => { chooseResume(event.currentTarget.files?.[0]); event.currentTarget.value = ""; }} className="sr-only" /><label htmlFor="resume-before-application" className="block cursor-pointer rounded-lg border border-[#176b50] px-4 py-3 text-center text-sm font-semibold text-[#176b50] hover:bg-[#f7faf7]">{resume ? "Replace resume (PDF)" : "Upload resume (PDF)"}</label><p className="mt-2 text-center text-xs text-[#7b857c]">Optional · PDF up to 5 MB{resume ? ` · Selected: ${resume.name}` : ""}</p>{error && <p role="alert" className="mt-2 text-xs text-[#b94b48]">{error}</p>}</div>}<button disabled={availability?.canApply !== true} onClick={() => setFormOpen(true)} className="w-full rounded-lg bg-[#176b50] px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-[#b8c2ba]">{availability === null ? "Checking availability…" : availability.canApply ? "Apply now" : availability.isOpen ? "Not eligible" : "Applications closed"}</button></div> : <form onSubmit={(event) => void apply(event)} className="space-y-4">
             <div className="rounded-lg border border-[#e2e7e1] bg-[#fafbf9] p-4 text-xs leading-5 text-[#5e6b61]"><div className="mb-2 font-semibold text-[#202a23]">Review your application</div><div>{availability?.student?.name || "Student"} · {availability?.student?.email}</div><div>{availability?.student?.branch || "Branch not set"} · CGPA {availability?.student?.cgpa ?? "—"} / 10</div><div className="mt-2 font-medium text-[#176b50]">{internship.role} at {internship.company}</div></div>

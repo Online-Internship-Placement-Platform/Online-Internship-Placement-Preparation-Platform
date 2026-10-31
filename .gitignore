@@ -1,5 +1,11 @@
 note.txt
 prisma/migrations
+!prisma/migrations/
+prisma/migrations/*
+!prisma/migrations/20261030_add_internship_domain/
+!prisma/migrations/20261030_add_internship_domain/migration.sql
+!prisma/migrations/20261030150000_recommended_videos/
+!prisma/migrations/20261030150000_recommended_videos/migration.sql
 
 ## Default ignored items for next.js apps
 # dependencies

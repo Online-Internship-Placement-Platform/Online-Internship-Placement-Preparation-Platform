@@ -1,8 +1,12 @@
 import "dotenv/config";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "../generated/prisma/client";
-import { demoAccounts } from "../src/modules/authentication/demo-account-seed";
-import { hashPassword } from "../src/lib/password-hash";
+import {
+  demoAccounts,
+  ensureDemoAccount,
+  type DemoAccountStore,
+} from "../src/modules/authentication/demo-account-seed";
+import { verifyPassword } from "../src/lib/password-hash";
 
 const EXPECTED_DATABASE = "inplace";
 const EXPECTED_PORT = 3306;
@@ -12,17 +16,17 @@ class InitializationError extends Error {}
 
 function validateOptInAndConfiguredTarget() {
   if (process.env.NODE_ENV === "production") {
-    throw new InitializationError("Refusing to initialize demo passwords in production.");
+    throw new InitializationError("Refusing to initialize demo accounts in production.");
   }
   if (process.env.ALLOW_DEMO_PASSWORD_INIT !== "true") {
-    throw new InitializationError("Set ALLOW_DEMO_PASSWORD_INIT=true to explicitly initialize local demo passwords.");
+    throw new InitializationError("Set ALLOW_DEMO_PASSWORD_INIT=true to explicitly initialize local demo accounts.");
   }
 
   const host = process.env.DATABASE_HOST ?? "localhost";
   const port = Number(process.env.DATABASE_PORT ?? EXPECTED_PORT);
   const database = process.env.DATABASE_NAME;
   if (!ALLOWED_HOSTS.has(host) || port !== EXPECTED_PORT || database !== EXPECTED_DATABASE) {
-    throw new InitializationError("Refusing to initialize demo passwords: the configured database is not the expected local inplace database.");
+    throw new InitializationError("Refusing to initialize demo accounts: the configured database is not the expected local inplace database.");
   }
 }
 
@@ -34,97 +38,100 @@ function databaseRole(role: (typeof demoAccounts)[number]["role"]) {
   }
 }
 
-const target = {
-  host: process.env.DATABASE_HOST ?? "localhost",
-  port: Number(process.env.DATABASE_PORT ?? EXPECTED_PORT),
-  database: process.env.DATABASE_NAME,
-};
 const prisma = new PrismaClient({
   adapter: new PrismaMariaDb({
-    ...target,
+    host: process.env.DATABASE_HOST ?? "localhost",
+    port: Number(process.env.DATABASE_PORT ?? EXPECTED_PORT),
     user: process.env.DATABASE_USER,
     password: process.env.DATABASE_PASSWORD,
+    database: process.env.DATABASE_NAME,
     connectionLimit: 1,
+    allowPublicKeyRetrieval: true,
   }),
 });
 
-type DatabaseIdentity = { databaseName: string | null; port: number | bigint };
+const demoAccountStore: DemoAccountStore = {
+  async findByEmail(email) {
+    return prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        role: true,
+        passwordHash: true,
+        studentProfile: { select: { id: true } },
+      },
+    });
+  },
+  async createAccount(data) {
+    await prisma.user.create({
+      data: {
+        email: data.email,
+        name: data.name,
+        role: data.role,
+        passwordHash: data.passwordHash,
+        ...(data.studentProfile ? { studentProfile: { create: data.studentProfile } } : {}),
+      },
+    });
+  },
+  async updatePasswordHash(id, passwordHash, role, previousPasswordHash) {
+    const result = previousPasswordHash === null
+      ? await prisma.$executeRaw`
+          UPDATE \`User\`
+          SET \`passwordHash\` = ${passwordHash}
+          WHERE \`id\` = ${id} AND \`role\` = ${databaseRole(role)} AND \`passwordHash\` IS NULL
+        `
+      : await prisma.$executeRaw`
+          UPDATE \`User\`
+          SET \`passwordHash\` = ${passwordHash}
+          WHERE \`id\` = ${id} AND \`role\` = ${databaseRole(role)} AND \`passwordHash\` = ${previousPasswordHash}
+        `;
 
-async function initializeMissingPasswords() {
+    if (result === 1) return;
+    const current = await prisma.user.findUnique({
+      where: { id },
+      select: { role: true, passwordHash: true },
+    });
+    if (current?.role === role && await verifyPassword(
+      demoAccounts.find((account) => account.role === role)!.password,
+      current.passwordHash,
+    )) return;
+    throw new InitializationError("A demo account changed during initialization; no unrelated account data was modified.");
+  },
+  async createStudentProfile(userId, profile) {
+    await prisma.studentProfile.create({ data: { userId, ...profile } });
+  },
+};
+
+async function initializeDemoAccounts() {
   validateOptInAndConfiguredTarget();
 
-  const [identity] = await prisma.$queryRaw<DatabaseIdentity[]>`
+  const [identity] = await prisma.$queryRaw<Array<{ databaseName: string | null; port: number | bigint }>>`
     SELECT DATABASE() AS databaseName, @@port AS port
   `;
   if (identity?.databaseName !== EXPECTED_DATABASE || Number(identity.port) !== EXPECTED_PORT) {
-    throw new InitializationError("Refusing to initialize demo passwords: the connected database identity did not match the expected local target.");
+    throw new InitializationError("Refusing to initialize demo accounts: the connected database identity did not match the expected local target.");
   }
 
-  // Validate every account before preparing or applying any update.
-  const snapshots = await Promise.all(demoAccounts.map(async (account) => {
-    const user = await prisma.user.findUnique({
-      where: { email: account.email },
-      select: { id: true, role: true, passwordHash: true },
-    });
-    if (!user) {
-      throw new InitializationError(`Required demo account ${account.email} is missing; no passwords were initialized.`);
-    }
-    if (user.role !== account.role) {
-      throw new InitializationError(`Demo account ${account.email} has a role mismatch; no passwords were initialized.`);
-    }
-    return { account, user };
-  }));
-
-  const pending: Array<{
-    account: (typeof demoAccounts)[number];
-    user: (typeof snapshots)[number]["user"];
-    encodedHash: string;
-  }> = [];
-  for (const { account, user } of snapshots) {
-    if (user.passwordHash === null) {
-      pending.push({ account, user, encodedHash: await hashPassword(account.password) });
+  // Check every existing role before making any account or password changes.
+  for (const account of demoAccounts) {
+    const existing = await demoAccountStore.findByEmail(account.email);
+    if (existing && existing.role !== account.role) {
+      throw new InitializationError(`Demo account ${account.email} has a role mismatch; no accounts were initialized.`);
     }
   }
 
-  const initialized: string[] = [];
-  const alreadyInitialized = snapshots
-    .filter(({ user }) => user.passwordHash !== null)
-    .map(({ account }) => account.email);
-
-  for (const { account, user, encodedHash } of pending) {
-    // Raw SQL avoids Prisma's automatic @updatedAt change. The conditional
-    // predicates prevent replacing a hash or updating an account whose role
-    // changed after preflight. Only passwordHash is written.
-    const updated = await prisma.$executeRaw`
-      UPDATE \`User\`
-      SET \`passwordHash\` = ${encodedHash}
-      WHERE \`id\` = ${user.id}
-        AND \`role\` = ${databaseRole(account.role)}
-        AND \`passwordHash\` IS NULL
-    `;
-
-    if (updated === 1) {
-      initialized.push(account.email);
-      continue;
+  for (const account of demoAccounts) {
+    const result = await ensureDemoAccount(demoAccountStore, account);
+    if (result === "role-mismatch") {
+      throw new InitializationError(`Demo account ${account.email} has a role mismatch; no account data was changed.`);
     }
-
-    const current = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { role: true, passwordHash: true },
-    });
-    if (current?.role === account.role && current.passwordHash !== null) {
-      alreadyInitialized.push(account.email);
-      continue;
-    }
-    throw new InitializationError(`Could not safely initialize ${account.email}; no existing hash was overwritten.`);
+    if (result === "created") console.info(`Created missing demo account ${account.email}.`);
+    else if (result === "completed") console.info(`Repaired demo authentication or completed missing profile data for ${account.email}.`);
+    else console.info(`Kept existing demo account ${account.email}.`);
   }
-
-  for (const email of initialized) console.info(`Initialized missing demo password hash for ${email}.`);
-  for (const email of alreadyInitialized) console.info(`Kept existing demo password hash for ${email}.`);
-  if (initialized.length === 0) console.info("No demo password hashes needed initialization.");
 }
 
-initializeMissingPasswords()
+initializeDemoAccounts()
   .catch((error: unknown) => {
     if (error instanceof InitializationError) {
       console.error(error.message);
@@ -132,7 +139,7 @@ initializeMissingPasswords()
       const errorCode = typeof error === "object" && error !== null && "code" in error
         ? String(error.code)
         : "unknown";
-      console.error("Demo password initialization failed.", { errorCode });
+      console.error("Demo account initialization failed.", { errorCode });
     }
     process.exitCode = 1;
   })

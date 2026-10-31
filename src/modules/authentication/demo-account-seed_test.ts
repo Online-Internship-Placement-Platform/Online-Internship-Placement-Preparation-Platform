@@ -18,9 +18,11 @@ function memoryStore(initial: Array<ExistingDemoUser & { email: string }> = []) 
       users.set(data.email, { id, email: data.email, role: data.role, passwordHash: data.passwordHash, studentProfile: profile });
       if (data.studentProfile) profiles.push({ userId: id, ...structuredClone(data.studentProfile) });
     },
-    updatePasswordHash: async (id, passwordHash) => {
+    updatePasswordHash: async (id, passwordHash, role, previousPasswordHash) => {
       const user = [...users.values()].find((item) => item.id === id);
       assert.ok(user);
+      assert.equal(user.role, role);
+      assert.equal(user.passwordHash, previousPasswordHash);
       user.passwordHash = passwordHash;
     },
     createStudentProfile: async (userId, profile) => {
@@ -81,6 +83,14 @@ assert.equal(await ensureDemoAccount(incompleteStudent.store, demoAccounts[0]), 
 const completedStudent = incompleteStudent.users.get("student@gmail.com")!;
 assert.ok(await verifyPassword("student", completedStudent.passwordHash));
 assert.ok(completedStudent.studentProfile);
+
+const badHash = memoryStore([{ id: 3, email: "admin@gmail.com", role: "ADMIN", passwordHash: "invalid-hash", studentProfile: null }]);
+assert.equal(await ensureDemoAccount(badHash.store, demoAccounts[1]), "completed");
+const repairedAdmin = badHash.users.get("admin@gmail.com")!;
+assert.equal(repairedAdmin.id, 3);
+assert.equal(repairedAdmin.role, "ADMIN");
+assert.equal(await verifyPassword("admin", repairedAdmin.passwordHash), true);
+assert.equal(await ensureDemoAccount(badHash.store, demoAccounts[1]), "unchanged");
 
 const mismatched = memoryStore([{ id: 2, email: "student@gmail.com", role: "ADMIN", passwordHash: null, studentProfile: null }]);
 assert.equal(await ensureDemoAccount(mismatched.store, demoAccounts[0]), "role-mismatch");

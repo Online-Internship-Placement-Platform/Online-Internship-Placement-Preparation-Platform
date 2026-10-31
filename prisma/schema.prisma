@@ -165,6 +165,7 @@ model Internship {
   id                    String        @id
   company               String
   role                  String
+  domain                String        @default("Other") @db.VarChar(100)
   applicationDeadline   DateTime      @db.Date
   published             Boolean       @default(false)
   acceptingApplications Boolean       @default(false)
@@ -186,4 +187,24 @@ model Application {
 
   @@unique([studentId, internshipId])
   @@index([internshipId])
+}
+
+enum RecommendedVideoCategory {
+  SOFTWARE_DEVELOPMENT
+  DATA_ANALYTICS
+  DESIGN_UI_UX
+  APTITUDE_LOGICAL_REASONING
+}
+
+model RecommendedVideo {
+  id          String                   @id @db.VarChar(191)
+  title       String                   @db.VarChar(191)
+  youtubeId   String                   @unique @db.VarChar(11)
+  channelName String                   @db.VarChar(191)
+  description String                   @db.Text
+  category    RecommendedVideoCategory
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  @@index([category])
 }
