@@ -1,7 +1,31 @@
 
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
-import { assessments, formatDate } from "@/lib/placement-data";
+import { formatDate } from "@/lib/placement-data";
+import { prisma } from "@/lib/prisma";
+import {
+  getServerRole,
+  getServerEmail,
+  isServerAuthConfigured,
+} from "@/lib/server-auth";
+import { Suspense } from "react";
+import { connection } from "next/server";
+
+const DOMAIN_LABELS: Record<string, string> = {
+  WEB_DEVELOPMENT: "Web Development",
+  AI_ML: "AI / ML",
+  CORE_CS: "Core Computer Science",
+  NETWORKS: "Computer Networks",
+  DATABASES: "Databases",
+};
+
+type AssessmentRecord = {
+  name: string;
+  domain: string;
+  date: string;
+  score: number;
+  total: number;
+};
 
 const getPercentage = (score: number, total: number) =>
   total > 0 ? Math.round((score / total) * 100) : 0;
@@ -13,58 +37,177 @@ const getLevel = (percentage: number) => {
 };
 
 const getResources = (domain: string) => {
-  const resources: Record<string, { title: string; description: string; href: string }[]> = {
-    "Software Development": [
+  const resources: Record<
+    string,
+    { title: string; description: string; href: string }[]
+  > = {
+    "Web Development": [
       {
-        title: "Programming fundamentals",
-        description: "Revise core concepts and solve practice problems.",
-        href: "https://www.geeksforgeeks.org/",
+        title: "Web development fundamentals",
+        description:
+          "Revise HTML, CSS, JavaScript and web development concepts.",
+        href: "https://developer.mozilla.org/en-US/docs/Learn_web_development",
       },
       {
-        title: "Coding practice",
-        description: "Strengthen problem-solving with coding exercises.",
+        title: "Frontend practice",
+        description:
+          "Strengthen coding and problem-solving skills.",
         href: "https://leetcode.com/problemset/",
       },
     ],
-    "Data & Analytics": [
+    "AI / ML": [
+      {
+        title: "Machine learning fundamentals",
+        description:
+          "Review core machine learning concepts and workflows.",
+        href: "https://scikit-learn.org/stable/user_guide.html",
+      },
+      {
+        title: "Python practice",
+        description:
+          "Practise Python programming and data handling.",
+        href: "https://docs.python.org/3/tutorial/",
+      },
+    ],
+    "Core Computer Science": [
+      {
+        title: "Operating systems",
+        description:
+          "Revise processes, threads, memory and scheduling.",
+        href: "https://www.geeksforgeeks.org/operating-systems/",
+      },
+      {
+        title: "Data structures and algorithms",
+        description:
+          "Practise fundamental data structures and algorithms.",
+        href: "https://leetcode.com/problemset/",
+      },
+    ],
+    "Computer Networks": [
+      {
+        title: "Computer networking",
+        description:
+          "Revise networking fundamentals and protocols.",
+        href: "https://www.geeksforgeeks.org/computer-network-tutorials/",
+      },
+      {
+        title: "HTTP and networking concepts",
+        description:
+          "Review HTTP, communication protocols and network architecture.",
+        href: "https://developer.mozilla.org/en-US/docs/Web/HTTP",
+      },
+    ],
+    Databases: [
       {
         title: "SQL practice",
-        description: "Practise queries, joins, grouping, and subqueries.",
+        description:
+          "Practise joins, grouping, subqueries and SQL queries.",
         href: "https://sqlbolt.com/",
       },
       {
-        title: "Python for data analysis",
-        description: "Review data manipulation and analysis basics.",
-        href: "https://pandas.pydata.org/docs/getting_started/",
-      },
-    ],
-    Design: [
-      {
-        title: "Design fundamentals",
-        description: "Review usability, visual hierarchy, and interaction design.",
-        href: "https://www.nngroup.com/articles/",
-      },
-      {
-        title: "Figma learning resources",
-        description: "Practise prototyping and interface design.",
-        href: "https://help.figma.com/",
+        title: "Database concepts",
+        description:
+          "Revise relational database design and DBMS concepts.",
+        href: "https://www.geeksforgeeks.org/dbms/",
       },
     ],
   };
 
-  return resources[domain] ?? [
-    {
-      title: `${domain} practice`,
-      description: "Review the concepts from this domain and practise questions.",
-      href: "https://www.geeksforgeeks.org/",
-    },
-  ];
+  return (
+    resources[domain] ?? [
+      {
+        title: `${domain} practice`,
+        description:
+          "Review the concepts from this domain and practise questions.",
+        href: "https://www.geeksforgeeks.org/",
+      },
+    ]
+  );
 };
 
-export default function StudentAnalysisPage() {
+async function StudentAnalysisContent() {
+   await connection();
+  // Authenticate the student before retrieving any performance data.
+  
+  const isConfigured = isServerAuthConfigured();
+  const role = isConfigured ? await getServerRole() : null;
+  const studentEmail =
+    role === "student" ? await getServerEmail() : null;
+
+  if (!studentEmail) {
+    return (
+      <AppShell
+        role="student"
+        title="Performance Analysis"
+        eyebrow="Your preparation"
+      >
+        <section className="rounded-xl border border-[#e2e7e1] bg-white p-8 text-center">
+          <h2 className="font-semibold">
+            Unable to load performance analysis
+          </h2>
+          <p className="mt-2 text-sm text-[#6e786f]">
+            {!isConfigured
+              ? "Server authentication is not configured."
+              : "Please sign in with your student account to view your results."}
+          </p>
+          <Link
+            href="/login"
+            className="mt-5 inline-block rounded-lg bg-[#176b50] px-4 py-2.5 text-sm font-semibold text-white"
+          >
+            Go to Login
+          </Link>
+        </section>
+      </AppShell>
+    );
+  }
+
+  // Retrieve only this authenticated student's recorded attempts.
+  const recordedAttempts = await prisma.testAttempt.findMany({
+    where: {
+      studentId: studentEmail,
+    },
+    orderBy: {
+      completedAt: "asc",
+    },
+    select: {
+      id: true,
+      correctCount: true,
+      totalQuestions: true,
+      completedAt: true,
+      test: {
+        select: {
+          title: true,
+          domain: true,
+        },
+      },
+    },
+  });
+
+  // Convert database records into the format used by the analysis UI.
+  const assessments: AssessmentRecord[] = recordedAttempts.map(
+    (attempt) => ({
+      name: attempt.test.title,
+      domain:
+        DOMAIN_LABELS[attempt.test.domain] ??
+        attempt.test.domain,
+      date: attempt.completedAt.toISOString().slice(0, 10),
+      score: attempt.correctCount,
+      total: attempt.totalQuestions,
+    })
+  );
+
+  // Calculate domain-wise performance.
   const domainStats = Object.values(
     assessments.reduce<
-      Record<string, { domain: string; score: number; total: number; attempts: number }>
+      Record<
+        string,
+        {
+          domain: string;
+          score: number;
+          total: number;
+          attempts: number;
+        }
+      >
     >((groups, item) => {
       if (!groups[item.domain]) {
         groups[item.domain] = {
@@ -91,17 +234,24 @@ export default function StudentAnalysisPage() {
   const strongest = domainStats[0];
   const weakest = domainStats[domainStats.length - 1];
 
+  // Calculate the weighted overall score.
   const overallPercentage = getPercentage(
     assessments.reduce((sum, item) => sum + item.score, 0),
     assessments.reduce((sum, item) => sum + item.total, 0)
   );
 
+  // Sort assessment attempts chronologically.
   const chronologicalAssessments = [...assessments].sort(
     (a, b) => a.date.localeCompare(b.date)
   );
 
-  const recommendations = weakest ? getResources(weakest.domain) : [];
-    const progressTrends = domainStats.map((domain) => {
+  // Recommend resources for the weakest-performing domain.
+  const recommendations = weakest
+    ? getResources(weakest.domain)
+    : [];
+
+  // Compare the earliest and latest attempts in each domain.
+  const progressTrends = domainStats.map((domain) => {
     const attempts = assessments
       .filter((item) => item.domain === domain.domain)
       .sort((a, b) => a.date.localeCompare(b.date));
@@ -134,8 +284,8 @@ export default function StudentAnalysisPage() {
     >
       <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <p className="max-w-2xl text-sm text-[#6e786f]">
-          Understand your strengths, identify weaker domains, and decide what
-          to practise next.
+          Understand your strengths, identify weaker domains, and decide
+          what to practise next.
         </p>
 
         <Link
@@ -148,7 +298,9 @@ export default function StudentAnalysisPage() {
 
       {assessments.length === 0 ? (
         <section className="rounded-xl border border-[#e2e7e1] bg-white p-8 text-center">
-          <h2 className="font-semibold">No assessment results yet</h2>
+          <h2 className="font-semibold">
+            No assessment results yet
+          </h2>
           <p className="mt-2 text-sm text-[#6e786f]">
             Complete an assessment to start analysing your performance.
           </p>
@@ -167,16 +319,19 @@ export default function StudentAnalysisPage() {
               value={`${overallPercentage}%`}
               detail="Across recorded assessments"
             />
+
             <MetricCard
               label="Domains Assessed"
               value={String(domainStats.length)}
               detail="Unique preparation domains"
             />
+
             <MetricCard
               label="Strongest Domain"
               value={strongest.domain}
               detail={`${strongest.percentage}% average`}
             />
+
             <MetricCard
               label="Focus Area"
               value={weakest.domain}
@@ -187,7 +342,7 @@ export default function StudentAnalysisPage() {
           <section className="mt-8">
             <SectionTitle
               title="Strengths & Weaknesses"
-              description="Domain performance is calculated from the recorded assessment scores."
+              description="Domain performance is calculated from your recorded assessment scores."
             />
 
             <div className="grid gap-4 lg:grid-cols-2">
@@ -198,19 +353,26 @@ export default function StudentAnalysisPage() {
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <h3 className="text-sm font-semibold">{item.domain}</h3>
+                      <h3 className="text-sm font-semibold">
+                        {item.domain}
+                      </h3>
                       <p className="mt-1 text-xs text-[#7b857c]">
                         {item.attempts} recorded{" "}
-                        {item.attempts === 1 ? "assessment" : "assessments"}
+                        {item.attempts === 1
+                          ? "assessment"
+                          : "assessments"}
                       </p>
                     </div>
+
                     <span className="rounded-md bg-[#f1f3ef] px-2 py-1 text-xs font-semibold text-[#526057]">
                       {getLevel(item.percentage)}
                     </span>
                   </div>
 
                   <div className="mt-5 flex items-center justify-between text-sm">
-                    <span className="text-[#6e786f]">Average score</span>
+                    <span className="text-[#6e786f]">
+                      Average score
+                    </span>
                     <span className="font-semibold">
                       {item.percentage}%
                     </span>
@@ -244,19 +406,30 @@ export default function StudentAnalysisPage() {
               <table className="w-full min-w-[500px] text-left text-sm">
                 <thead className="bg-[#f8faf7] text-xs text-[#6e786f]">
                   <tr>
-                    <th className="px-5 py-3 font-semibold">Assessment</th>
-                    <th className="px-5 py-3 font-semibold">Domain</th>
-                    <th className="px-5 py-3 font-semibold">Date</th>
-                    <th className="px-5 py-3 font-semibold">Score</th>
+                    <th className="px-5 py-3 font-semibold">
+                      Assessment
+                    </th>
+                    <th className="px-5 py-3 font-semibold">
+                      Domain
+                    </th>
+                    <th className="px-5 py-3 font-semibold">
+                      Date
+                    </th>
+                    <th className="px-5 py-3 font-semibold">
+                      Score
+                    </th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {chronologicalAssessments.map((item, index) => (
                     <tr
                       key={`${item.name}-${item.date}-${index}`}
                       className="border-t border-[#e2e7e1]"
                     >
-                      <td className="px-5 py-4 font-medium">{item.name}</td>
+                      <td className="px-5 py-4 font-medium">
+                        {item.name}
+                      </td>
                       <td className="px-5 py-4 text-[#6e786f]">
                         {item.domain}
                       </td>
@@ -274,12 +447,11 @@ export default function StudentAnalysisPage() {
             </div>
 
             <p className="mt-3 text-xs text-[#7b857c]">
-              A true improvement trend requires multiple attempts over time
-              within the same domain.
+              A true improvement trend requires multiple attempts over
+              time within the same domain.
             </p>
           </section>
 
-          
           <section className="mt-8">
             <SectionTitle
               title="Progress Trends"
@@ -298,13 +470,14 @@ export default function StudentAnalysisPage() {
 
                   {trend.attempts < 2 ? (
                     <p className="mt-3 text-sm text-[#6e786f]">
-                      Complete another assessment in this domain to track
-                      your progress.
+                      Complete another assessment in this domain to
+                      track your progress.
                     </p>
                   ) : (
                     <>
                       <p className="mt-3 text-sm text-[#6e786f]">
-                        {trend.firstPercentage}% → {trend.latestPercentage}%
+                        {trend.firstPercentage}% →{" "}
+                        {trend.latestPercentage}%
                       </p>
 
                       <p className="mt-2 text-sm font-semibold text-[#176b50]">
@@ -320,7 +493,6 @@ export default function StudentAnalysisPage() {
               ))}
             </div>
           </section>
-
 
           <section className="mt-8">
             <SectionTitle
@@ -338,10 +510,14 @@ export default function StudentAnalysisPage() {
                   key={resource.title}
                   className="rounded-xl border border-[#e2e7e1] bg-white p-5"
                 >
-                  <h3 className="text-sm font-semibold">{resource.title}</h3>
+                  <h3 className="text-sm font-semibold">
+                    {resource.title}
+                  </h3>
+
                   <p className="mt-2 text-sm text-[#6e786f]">
                     {resource.description}
                   </p>
+
                   <a
                     href={resource.href}
                     target="_blank"
@@ -355,8 +531,8 @@ export default function StudentAnalysisPage() {
             </div>
 
             <p className="mt-3 text-xs text-[#7b857c]">
-              These are rule-based suggestions using sample assessment data,
-              not AI-generated recommendations.
+              These are rule-based suggestions based on your recorded
+              assessment performance, not AI-generated recommendations.
             </p>
           </section>
         </>
@@ -376,11 +552,15 @@ function MetricCard({
 }) {
   return (
     <div className="min-w-0 rounded-xl border border-[#e2e7e1] bg-white p-5">
-      <p className="text-xs font-medium text-[#6e786f]">{label}</p>
+      <p className="text-xs font-medium text-[#6e786f]">
+        {label}
+      </p>
       <p className="mt-3 break-words text-2xl font-semibold text-[#176b50]">
         {value}
       </p>
-      <p className="mt-2 text-xs text-[#7b857c]">{detail}</p>
+      <p className="mt-2 text-xs text-[#7b857c]">
+        {detail}
+      </p>
     </div>
   );
 }
@@ -395,7 +575,30 @@ function SectionTitle({
   return (
     <div className="mb-4">
       <h2 className="text-base font-semibold">{title}</h2>
-      <p className="mt-1 text-sm text-[#6e786f]">{description}</p>
+      <p className="mt-1 text-sm text-[#6e786f]">
+        {description}
+      </p>
     </div>
   );
 }
+
+export default function StudentAnalysisPage() {
+  return (
+    <Suspense
+      fallback={
+        <AppShell
+          role="student"
+          title="Performance Analysis"
+          eyebrow="Your preparation"
+        >
+          <p className="text-sm text-[#6e786f]">
+            Loading your performance analysis...
+          </p>
+        </AppShell>
+      }
+    >
+      <StudentAnalysisContent />
+    </Suspense>
+  );
+}
+
