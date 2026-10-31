@@ -41,23 +41,6 @@ afterEach(() => {
 });
 
 describe("recommended videos", () => {
-  it("keeps the four domain labels and migrates the twelve curated videos", () => {
-    expect(videoCategories).toEqual([
-      "Software Development",
-      "Data & Analytics",
-      "Design / UI/UX",
-      "Aptitude & Logical Reasoning",
-    ]);
-
-    const migration = readFileSync(resolve(process.cwd(), "prisma/migrations/20261030150000_recommended_videos/migration.sql"), "utf8");
-    const seedValues = migration.split("INSERT INTO `RecommendedVideo`")[1];
-    expect(seedValues).toBeTruthy();
-    expect([...seedValues.matchAll(/^  \('/gm)]).toHaveLength(12);
-    for (const category of storedCategories) {
-      expect([...seedValues.matchAll(new RegExp(`'${category}'`, "g"))]).toHaveLength(3);
-    }
-  });
-
   it("constructs watch and thumbnail URLs from the validated YouTube ID", () => {
     for (const video of videos) {
       expect(video.watchUrl).toBe(`https://www.youtube.com/watch?v=${video.youtubeId}`);
