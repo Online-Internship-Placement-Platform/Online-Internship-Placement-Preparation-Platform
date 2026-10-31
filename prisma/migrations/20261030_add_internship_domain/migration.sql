@@ -1,2 +1,0 @@
-ALTER TABLE `Internship`
-  ADD COLUMN `domain` VARCHAR(100) NOT NULL DEFAULT 'Other';
