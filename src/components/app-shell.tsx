@@ -12,6 +12,7 @@ const navItems: Record<Role, { label: string; href: string }[]> = {
     { label: "Internships", href: "/student/internships" }, 
     { label: "Applications", href: "/student/applications" }, 
     { label: "Assessments", href: "/student/assessments" },
+    { label: "Performance Analysis", href: "/student/analysis" },
     { label: "Recommended Videos", href: "/student/recommended-videos" }
   ],
   admin: [{ label: "Overview", href: "/admin/dashboard" }, 
@@ -22,14 +23,15 @@ const navItems: Record<Role, { label: string; href: string }[]> = {
     { label: "Assessments", href: "/admin/assessments" },
     { label: "Recommended Videos", href: "/admin/recommended-videos" }
   ],
-  "super-admin": [{ label: "Overview", href: "/super-admin/dashboard" }, 
-    { label: "Profile", href: "/super-admin/profile" }, 
-    { label: "Student Directory", href: "/super-admin/student-directory" }, 
-    { label: "Internships", href: "/super-admin/internships" }, 
-    { label: "Submitted Applications", href: "/super-admin/applications" }, 
+  "super-admin": [
+    { label: "Overview", href: "/super-admin/dashboard" },
+    { label: "Profile", href: "/super-admin/profile" },
+    { label: "Student Directory", href: "/super-admin/student-directory" },
+    { label: "Internships", href: "/super-admin/internships" },
+    { label: "Submitted Applications", href: "/super-admin/applications" },
     { label: "Assessments", href: "/super-admin/assessments" },
-    { label: "Recommended Videos", href: "/super-admin/recommended-videos" },
-    { label: "Admin Account Requests", href: "/super-admin/account-requests" }
+    { label: "Admin Account Requests", href: "/super-admin/account-requests" },
+    { label: "Recommended Videos", href: "/super-admin/recommended-videos" }
   ],
 };
 
@@ -68,7 +70,9 @@ export function AppShell({
 
     async function checkSession() {
       try {
-        const response = await fetch("/api/auth/me", { cache: "no-store" });
+        const response = await fetch("/api/auth/me", {
+          cache: "no-store",
+        });
 
         if (!response.ok) {
           if (!cancelled) router.replace("/login");
@@ -159,9 +163,10 @@ export function StatusBadge({ status }: { status: string }) {
         : "bg-[#fff4df] text-[#a86618]";
 
   return (
-    <span className={`inline-flex rounded-md px-2 py-1 text-[11px] font-bold ${tone}`}>
+    <span
+      className={`inline-flex rounded-md px-2 py-1 text-[11px] font-bold ${tone}`}
+    >
       {status}
     </span>
   );
 }
-
