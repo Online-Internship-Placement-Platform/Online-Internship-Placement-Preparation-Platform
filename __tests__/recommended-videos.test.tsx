@@ -1,7 +1,5 @@
 import { cleanup, fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { RecommendedVideosView } from "@/components/recommended-videos-view";
 import {
   serializeRecommendedVideo,
