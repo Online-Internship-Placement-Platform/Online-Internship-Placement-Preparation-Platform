@@ -55,6 +55,15 @@ describe("recommended video APIs", () => {
     expect((await getManagementVideos()).status).toBe(403);
     expect((await POST(new Request("http://local/api/super-admin/recommended-videos", { method: "POST", body: JSON.stringify(validVideo) }))).status).toBe(403);
     expect(createRecommendedVideo).not.toHaveBeenCalled();
+
+    getServerSession.mockResolvedValue({ userId: 10, role: "student" });
+    expect((await POST(new Request("http://local/api/super-admin/recommended-videos", { method: "POST", body: JSON.stringify(validVideo) }))).status).toBe(403);
+    const context = { params: Promise.resolve({ videoId: "video-1" }) };
+    expect((await PATCH(new Request("http://local/api/super-admin/recommended-videos/video-1", { method: "PATCH", body: JSON.stringify(validVideo) }), context)).status).toBe(403);
+    expect((await DELETE(new Request("http://local/api/super-admin/recommended-videos/video-1", { method: "DELETE" }), context)).status).toBe(403);
+    expect(createRecommendedVideo).not.toHaveBeenCalled();
+    expect(updateRecommendedVideo).not.toHaveBeenCalled();
+    expect(deleteRecommendedVideo).not.toHaveBeenCalled();
   });
 
   it("creates, edits, and deletes videos for the Super Admin", async () => {

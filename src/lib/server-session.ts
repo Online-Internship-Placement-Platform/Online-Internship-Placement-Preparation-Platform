@@ -8,6 +8,7 @@ import type { Role } from "@/lib/placement-data";
 
 const COOKIE_NAME = "inplace-server-session";
 const SESSION_LIFETIME_SECONDS = 60 * 60 * 24 * 7;
+const LEGACY_SESSION_LIFETIME_SECONDS = 60 * 60 * 8;
 
 export type ServerSession = { userId: number; role: Role };
 
@@ -21,6 +22,15 @@ function sessionSecret() {
 
 function sign(value: string) {
   return createHmac("sha256", sessionSecret()).update(value).digest("base64url");
+}
+
+function legacySessionSecret() {
+  const secret = process.env.AUTH_SESSION_SECRET;
+  return secret && secret.length >= 32 && !secret.includes("replace-with-a-random-secret") ? secret : null;
+}
+
+function signLegacySession(role: string, email: string, expiresAt: number, secret: string) {
+  return createHmac("sha256", secret).update(`${role}.${email}.${expiresAt}`).digest("base64url");
 }
 
 export async function setServerSession(session: ServerSession) {
@@ -43,6 +53,39 @@ export async function clearServerSession() {
 export async function getServerSession(): Promise<ServerSession | null> {
   const token = (await cookies()).get(COOKIE_NAME)?.value;
   if (!token) return null;
+
+  // Older sign-in actions issued role.email.expiresAt.signature cookies. Accept
+  // those only when their signature is valid and the current database role
+  // still matches, so every API can use this one session reader safely.
+  const legacySecret = legacySessionSecret();
+  if (legacySecret) {
+    const parts = token.split(".");
+    if (parts.length >= 4) {
+      await connection();
+      const role = parts[0];
+      const email = parts.slice(1, -2).join(".");
+      const expiresAt = Number(parts.at(-2));
+      const signature = parts.at(-1);
+      if (
+        (role === "student" || role === "admin" || role === "super-admin") && email &&
+        Number.isSafeInteger(expiresAt) && expiresAt > Math.floor(Date.now() / 1000) &&
+        expiresAt <= Math.floor(Date.now() / 1000) + LEGACY_SESSION_LIFETIME_SECONDS && signature
+      ) {
+        const expected = Buffer.from(signLegacySession(role, email, expiresAt, legacySecret));
+        const received = Buffer.from(signature);
+        if (expected.length === received.length && timingSafeEqual(expected, received)) {
+          try {
+            const user = await prisma.user.findUnique({ where: { email }, select: { id: true, role: true } });
+            const currentRole = user ? toSessionRole(user.role) : null;
+            if (user && currentRole === role) return { userId: user.id, role: currentRole };
+          } catch {
+            return null;
+          }
+        }
+      }
+    }
+  }
+
   const [value, signature, extra] = token.split(".");
   if (!value || !signature || extra) return null;
 

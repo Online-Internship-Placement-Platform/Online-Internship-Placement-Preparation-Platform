@@ -163,7 +163,7 @@ export default function AdminRecommendedVideosView() {
 
       <div className="overflow-hidden rounded-xl border border-[#e2e7e1] bg-white">
         {loading ? <p role="status" className="p-8 text-center text-sm text-[#6e786f]">Loading videos…</p> : videos.length === 0 ? <p className="p-8 text-center text-sm text-[#6e786f]">No recommended videos are available yet.</p> : (
-          <div className="overflow-x-auto">
+          <div role="region" aria-label="Recommended video records" tabIndex={0} className="max-h-[60vh] overflow-auto overscroll-contain focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#176b50] lg:max-h-[min(65vh,calc(100vh-18rem))]">
             <table className="w-full min-w-[720px] text-left">
               <thead className="border-b border-[#edf0ec] bg-[#fafbf9] text-[10px] uppercase tracking-[0.12em] text-[#89948b]"><tr><th className="px-5 py-3 font-semibold">Video</th><th className="px-5 py-3 font-semibold">Domain</th><th className="px-5 py-3 font-semibold">Channel</th><th className="px-5 py-3 font-semibold">Actions</th></tr></thead>
               <tbody>{videos.map((video) => <tr key={video.id} className="border-b border-[#edf0ec] last:border-0">
