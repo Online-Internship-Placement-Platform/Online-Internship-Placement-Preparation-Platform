@@ -14,5 +14,5 @@ export default function SuperAdminRecommendedVideosPage() {
 async function AuthorizedVideoManagementPage() {
   const session = await getServerSession();
   if (!session || session.role !== "super-admin") redirect("/login");
-  return <AdminRecommendedVideosView />;
+  return <AdminRecommendedVideosView role="super-admin" />;
 }

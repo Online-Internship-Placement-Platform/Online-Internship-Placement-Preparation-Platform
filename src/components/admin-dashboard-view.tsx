@@ -79,14 +79,20 @@ export default async function AdminDashboardView({ role }: { role: AdminRole }) 
   const [studentCount, activeInternshipCount, applicationCount, pendingDecisionCount, recentApplications, upcomingDeadlines] = dashboardData;
   const internshipHref = role === "admin" ? "/admin/internships" : "/super-admin/internships";
   const applicationsHref = role === "admin" ? "/admin/applications" : "/super-admin/applications";
+  const recommendedVideosHref = role === "admin" ? "/admin/recommended-videos" : "/super-admin/recommended-videos";
 
   return (
     <AppShell role={role} title="Placement overview" eyebrow="Administration">
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <p className="text-sm text-[#6e786f]">A clear view of your campus placement pipeline.</p>
-        <Link href={internshipHref} className="rounded-lg bg-[#176b50] px-4 py-2.5 text-sm font-semibold text-white">
-          Manage internships <span className="ml-3" aria-hidden="true">→</span>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href={internshipHref} className="rounded-lg bg-[#176b50] px-4 py-2.5 text-sm font-semibold text-white">
+            Manage internships <span className="ml-3" aria-hidden="true">→</span>
+          </Link>
+          <Link href={recommendedVideosHref} className="rounded-lg border border-[#dfe5df] bg-white px-4 py-2.5 text-sm font-semibold text-[#176b50]">
+            Manage recommended videos <span className="ml-3" aria-hidden="true">→</span>
+          </Link>
+        </div>
       </div>
 
       <div className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">

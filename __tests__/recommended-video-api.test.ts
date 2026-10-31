@@ -46,17 +46,18 @@ describe("recommended video APIs", () => {
     expect((await getStudentVideos()).status).toBe(403);
   });
 
-  it("restricts management reads and writes to the Super Admin", async () => {
+  it("requires authentication and blocks students from video management APIs", async () => {
     getServerSession.mockResolvedValue(null);
     expect((await getManagementVideos()).status).toBe(401);
     expect((await POST(new Request("http://local/api/super-admin/recommended-videos", { method: "POST", body: JSON.stringify(validVideo) }))).status).toBe(401);
 
     getServerSession.mockResolvedValue({ userId: 11, role: "admin" });
-    expect((await getManagementVideos()).status).toBe(403);
-    expect((await POST(new Request("http://local/api/super-admin/recommended-videos", { method: "POST", body: JSON.stringify(validVideo) }))).status).toBe(403);
-    expect(createRecommendedVideo).not.toHaveBeenCalled();
+    expect((await getManagementVideos()).status).toBe(200);
+    expect((await POST(new Request("http://local/api/super-admin/recommended-videos", { method: "POST", body: JSON.stringify(validVideo) }))).status).toBe(201);
+    createRecommendedVideo.mockClear();
 
     getServerSession.mockResolvedValue({ userId: 10, role: "student" });
+    expect((await getManagementVideos()).status).toBe(403);
     expect((await POST(new Request("http://local/api/super-admin/recommended-videos", { method: "POST", body: JSON.stringify(validVideo) }))).status).toBe(403);
     const context = { params: Promise.resolve({ videoId: "video-1" }) };
     expect((await PATCH(new Request("http://local/api/super-admin/recommended-videos/video-1", { method: "PATCH", body: JSON.stringify(validVideo) }), context)).status).toBe(403);
@@ -66,8 +67,8 @@ describe("recommended video APIs", () => {
     expect(deleteRecommendedVideo).not.toHaveBeenCalled();
   });
 
-  it("creates, edits, and deletes videos for the Super Admin", async () => {
-    getServerSession.mockResolvedValue({ userId: 12, role: "super-admin" });
+  it.each(["admin", "super-admin"] as const)("lets %s create, edit, and delete videos", async (role) => {
+    getServerSession.mockResolvedValue({ userId: 12, role });
     const createResponse = await POST(new Request("http://local/api/super-admin/recommended-videos", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(validVideo),
     }));

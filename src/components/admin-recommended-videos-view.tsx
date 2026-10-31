@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { AppShell } from "@/components/app-shell";
+import type { Role } from "@/lib/placement-data";
 import {
   videoCategories,
   type RecommendedVideo,
@@ -25,7 +26,9 @@ const blankForm: VideoForm = {
   category: videoCategories[0],
 };
 
-export default function AdminRecommendedVideosView() {
+type AdminRole = Extract<Role, "admin" | "super-admin">;
+
+export default function AdminRecommendedVideosView({ role }: { role: AdminRole }) {
   const [videos, setVideos] = useState<RecommendedVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -116,7 +119,7 @@ export default function AdminRecommendedVideosView() {
   }
 
   return (
-    <AppShell role="super-admin" title="Recommended Videos" eyebrow="Content management">
+    <AppShell role={role} title="Recommended Videos" eyebrow="Content management">
       <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold">Manage recommended videos</h2>

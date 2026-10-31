@@ -13,7 +13,7 @@ type RouteContext = { params: Promise<{ videoId: string }> };
 async function authorize() {
   const session = await getServerSession();
   if (!session) return NextResponse.json({ error: "Sign in to manage recommended videos." }, { status: 401 });
-  if (session.role !== "super-admin") return NextResponse.json({ error: "Super Admin access is required." }, { status: 403 });
+  if (session.role !== "admin" && session.role !== "super-admin") return NextResponse.json({ error: "Admin access is required." }, { status: 403 });
   return null;
 }
 

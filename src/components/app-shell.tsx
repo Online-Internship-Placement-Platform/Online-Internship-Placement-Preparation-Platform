@@ -19,7 +19,8 @@ const navItems: Record<Role, { label: string; href: string }[]> = {
     { label: "Student Directory", href: "/admin/student-directory" }, 
     { label: "Internships", href: "/admin/internships" }, 
     { label: "Submitted Applications", href: "/admin/applications" }, 
-    { label: "Assessments", href: "/admin/assessments" }
+    { label: "Assessments", href: "/admin/assessments" },
+    { label: "Recommended Videos", href: "/admin/recommended-videos" }
   ],
   "super-admin": [{ label: "Overview", href: "/super-admin/dashboard" }, 
     { label: "Profile", href: "/super-admin/profile" }, 
