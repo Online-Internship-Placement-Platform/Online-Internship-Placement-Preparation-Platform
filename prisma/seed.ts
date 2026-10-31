@@ -309,6 +309,65 @@ const internships = [
 ];
 
 // ---------------------------------------------------------------------------
+// Recommended video data
+// ---------------------------------------------------------------------------
+
+const recommendedVideos = [
+  {
+    id: "recommended-video-javascript-foundations",
+    title: "Learn JavaScript - Full Course for Beginners",
+    youtubeId: "PkZNo7MFNFg",
+    channelName: "freeCodeCamp.org",
+    description: "A complete beginner course covering JavaScript fundamentals that are useful for frontend internship interviews and practical development work.",
+    category: "SOFTWARE_DEVELOPMENT",
+  },
+  {
+    id: "recommended-video-sql-fundamentals",
+    title: "SQL Tutorial - Full Database Course for Beginners",
+    youtubeId: "HXV3zeQKqGY",
+    channelName: "freeCodeCamp.org",
+    description: "A beginner-friendly database course covering SQL queries and relational database concepts used in data and analytics roles.",
+    category: "DATA_ANALYTICS",
+  },
+  {
+    id: "recommended-video-figma-basics",
+    title: "Introducing Figma: A Beginners Tutorial",
+    youtubeId: "JGLfyTDgfDc",
+    channelName: "Rino de Boer",
+    description: "An introduction to Figma essentials, including layout and visual design tools relevant to UI/UX portfolios and design internships.",
+    category: "DESIGN_UI_UX",
+  },
+  {
+    id: "recommended-video-logical-reasoning-placement",
+    title: "Solved Logical Reasoning Placement Paper",
+    youtubeId: "SReCrSIhnfc",
+    channelName: "CareerRide",
+    description: "Worked logical reasoning questions and shortcuts for campus placement tests and job interviews.",
+    category: "APTITUDE_LOGICAL_REASONING",
+  },
+] as const;
+
+async function seedRecommendedVideos() {
+  let inserted = 0;
+  let skipped = 0;
+
+  for (const video of recommendedVideos) {
+    const existing = await prisma.recommendedVideo.findUnique({
+      where: { youtubeId: video.youtubeId },
+      select: { id: true },
+    });
+    if (existing) {
+      skipped++;
+      continue;
+    }
+    await prisma.recommendedVideo.create({ data: video });
+    inserted++;
+  }
+
+  console.log(`Recommended videos: ${inserted} inserted, ${skipped} already existed.`);
+}
+
+// ---------------------------------------------------------------------------
 // Placement-test seed function (Issue #27 — 150 questions + 15 default tests)
 // ---------------------------------------------------------------------------
 
@@ -453,6 +512,7 @@ async function main() {
     return;
   }
   await seedPlacementTests();
+  await seedRecommendedVideos();
   await seedDemoAccounts();
   console.log("All seeds complete.");
 }
