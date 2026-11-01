@@ -12,6 +12,10 @@ type ApplicationAvailability = {
     company: string;
     role: string;
     domain: string;
+    stipendPerMonth: number;
+    type: "remote" | "hybrid" | "on-site";
+    location: string | null;
+    description: string;
     applicationDeadline: string;
     minCgpa: number;
     eligibleBranches: string[];
@@ -166,7 +170,8 @@ export function InternshipDetail({ id }: { id: string }) {
     <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
       <div className="rounded-xl border border-[#e2e7e1] bg-white p-7">
         <div className="mb-8 flex items-start justify-between"><div><div className="mb-2 text-sm font-semibold text-[#176b50]">{internship.company}</div><h2 className="text-2xl font-semibold tracking-tight">{internship.role}</h2><p className="mt-2 text-sm text-[#6e786f]">{internship.domain}</p></div><StatusBadge status={displayedOpen ? "Open" : "Closed"} /></div>
-        <SectionHeading title="About the role" /><p className="mb-8 text-sm leading-7 text-[#5e6b61]">Review the eligibility requirements and application deadline for this opportunity.</p>
+        <SectionHeading title="About the role" /><p className="mb-8 whitespace-pre-wrap text-sm leading-7 text-[#5e6b61]">{internship.description || "No description has been added yet."}</p>
+        <SectionHeading title="Opportunity details" /><div className="mb-8 grid gap-3 sm:grid-cols-2"><Requirement label="Monthly stipend" value={new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(internship.stipendPerMonth)} okay /><Requirement label="Work type" value={internship.type === "on-site" ? "On-site" : internship.type[0].toUpperCase() + internship.type.slice(1)} okay />{internship.type !== "remote" && <Requirement label="Location" value={internship.location || "Not provided"} okay />}</div>
         <SectionHeading title="Required skills" /><div className="mb-8 flex flex-wrap gap-2">{internship.requiredSkills.map((skill) => <span className="rounded-lg border border-[#dce5de] bg-[#f7faf7] px-3 py-2 text-xs font-medium text-[#405147]" key={skill}>{skill}</span>)}</div>
         <div className="mb-3 flex items-center justify-between"><SectionHeading title="Eligibility requirements" />{!editingSkills && <button type="button" onClick={() => { setDraftSkills([...savedSkills]); setEditingSkills(true); setSkillMessage(""); setSkillError(""); }} className="text-xs font-semibold text-[#176b50] underline">Edit skills</button>}</div>
         <div className="grid gap-3 sm:grid-cols-2"><Requirement label="Eligible branches" value={internship.eligibleBranches.join(", ")} okay={branchCheck?.eligible === true} /><Requirement label="Minimum CGPA" value={`${internship.minCgpa} / 10`} okay={cgpaCheck?.eligible === true} /></div>

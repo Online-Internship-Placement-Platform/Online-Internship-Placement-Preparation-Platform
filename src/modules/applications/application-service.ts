@@ -17,6 +17,10 @@ type InternshipRequirements = {
   company: string;
   role: string;
   domain: string;
+  stipendPerMonth: number;
+  type: string;
+  location: string | null;
+  description: string;
   applicationDeadline: Date;
   published: boolean;
   acceptingApplications: boolean;
@@ -49,6 +53,7 @@ export async function getApplicationContext(internshipId: string, userId: number
       where: { id: internshipId },
       select: {
         id: true, company: true, role: true, domain: true, applicationDeadline: true, published: true,
+        stipendPerMonth: true, type: true, location: true, description: true,
         acceptingApplications: true, minCgpa: true, eligibleBranches: true, requiredSkills: true,
       },
     }),
@@ -88,6 +93,7 @@ export async function listStudentInternshipEligibility(userId: number) {
       orderBy: [{ applicationDeadline: "asc" }, { company: "asc" }],
       select: {
         id: true, company: true, role: true, domain: true, applicationDeadline: true, published: true,
+        stipendPerMonth: true, type: true, location: true, description: true,
         acceptingApplications: true, minCgpa: true, eligibleBranches: true, requiredSkills: true,
       },
     }),
@@ -121,6 +127,10 @@ export async function listStudentInternshipEligibility(userId: number) {
         company: internship.company,
         role: internship.role,
         domain: internship.domain,
+        stipendPerMonth: internship.stipendPerMonth,
+        type: internship.type,
+        location: internship.location,
+        description: internship.description,
         applicationDeadline: internship.applicationDeadline.toISOString().slice(0, 10),
         minCgpa: internship.minCgpa,
         eligibleBranches: requirements.eligibleBranches,

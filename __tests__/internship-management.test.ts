@@ -16,6 +16,7 @@ import { createInternship, deleteInternship, updateInternship } from "@/modules/
 
 const record = {
   company: "Example Co", role: "Frontend Intern", domain: "Software Development" as const,
+  stipendPerMonth: 12000, type: "remote" as const, location: null, description: "Build web features.",
   applicationDeadline: "2030-06-30", minCgpa: 7.5,
   eligibleBranches: ["Computer Science"], requiredSkills: ["React"],
   published: false, acceptingApplications: false,
