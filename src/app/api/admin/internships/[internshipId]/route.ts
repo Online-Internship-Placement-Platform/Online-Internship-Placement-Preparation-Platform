@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/server-session";
 import { isApplicationAdminRole } from "@/modules/applications/application-authorization";
-import { deleteInternship, isMissingInternshipError, updateInternship } from "@/modules/internships/internship-service";
+import { deleteInternship, getAdminInternship, isMissingInternshipError, updateInternship } from "@/modules/internships/internship-service";
 import { parseInternshipInput } from "@/modules/internships/internship-validation";
 
 type RouteContext = { params: Promise<{ internshipId: string }> };
@@ -11,6 +11,20 @@ async function authorizeAdmin() {
   if (!session) return NextResponse.json({ error: "Sign in to manage internships." }, { status: 401 });
   if (!isApplicationAdminRole(session.role)) return NextResponse.json({ error: "Only administrators can manage internships." }, { status: 403 });
   return null;
+}
+
+export async function GET(_request: Request, { params }: RouteContext) {
+  const denial = await authorizeAdmin();
+  if (denial) return denial;
+  try {
+    const { internshipId } = await params;
+    const internship = await getAdminInternship(internshipId);
+    if (!internship) return NextResponse.json({ error: "This internship could not be found." }, { status: 404 });
+    return NextResponse.json({ internship }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) {
+    console.error("Could not load an internship for administrative review.", error);
+    return NextResponse.json({ error: "Internship details are temporarily unavailable. Please try again." }, { status: 503 });
+  }
 }
 
 export async function PATCH(request: Request, { params }: RouteContext) {

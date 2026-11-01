@@ -300,12 +300,15 @@ const demoAccountStore: DemoAccountStore = {
 // Internship data (from authentication branch)
 // ---------------------------------------------------------------------------
 
+const internshipDeadline = (daysFromToday: number) =>
+  new Date(Date.now() + daysFromToday * 86_400_000).toISOString().slice(0, 10);
+
 const internships = [
-  { id: "int-001", company: "Northstar Labs", role: "Frontend Engineering Intern", domain: "Software Development", applicationDeadline: "2026-11-08", minCgpa: 7.5, eligibleBranches: ["Computer Science", "Information Technology"], requiredSkills: ["React", "TypeScript", "CSS"] },
-  { id: "int-002", company: "Aster Finance", role: "Data Analyst Intern", domain: "Data & Analytics", applicationDeadline: "2026-10-28", minCgpa: 8, eligibleBranches: ["Computer Science", "Information Technology", "Statistics"], requiredSkills: ["SQL", "Python", "Excel"] },
-  { id: "int-003", company: "Studio Kora", role: "Product Design Intern", domain: "Design", applicationDeadline: "2026-11-18", minCgpa: 7, eligibleBranches: ["Any branch"], requiredSkills: ["Figma", "Research", "Prototyping"] },
-  { id: "int-004", company: "Cloudline Systems", role: "Backend Developer Intern", domain: "Software Development", applicationDeadline: "2026-10-20", minCgpa: 8.5, eligibleBranches: ["Computer Science", "Information Technology"], requiredSkills: ["Node.js", "PostgreSQL", "REST APIs"] },
-  { id: "int-005", company: "GreenGrid Energy", role: "Business Strategy Intern", domain: "Business", applicationDeadline: "2026-09-30", minCgpa: 7.5, eligibleBranches: ["Any branch"], requiredSkills: ["Research", "Excel", "Communication"] },
+  { id: "int-001", company: "Northstar Labs", role: "Frontend Engineering Intern", domain: "Software Development", applicationDeadline: internshipDeadline(30), minCgpa: 7.5, eligibleBranches: ["Computer Science", "Information Technology"], requiredSkills: ["React", "TypeScript", "CSS"], stipendPerMonth: 35000, type: "hybrid", location: "Bengaluru", description: "Build polished product experiences with a small, collaborative engineering team.", published: true, acceptingApplications: true },
+  { id: "int-002", company: "Aster Finance", role: "Data Analyst Intern", domain: "Data & Analytics", applicationDeadline: internshipDeadline(30), minCgpa: 8, eligibleBranches: ["Computer Science", "Information Technology", "Statistics"], requiredSkills: ["SQL", "Python", "Excel"], stipendPerMonth: 30000, type: "on-site", location: "Mumbai", description: "Turn financial data into clear insights that help teams make better decisions.", published: true, acceptingApplications: true },
+  { id: "int-003", company: "Studio Kora", role: "Product Design Intern", domain: "Design", applicationDeadline: internshipDeadline(30), minCgpa: 7, eligibleBranches: ["Any branch"], requiredSkills: ["Figma", "Research", "Prototyping"], stipendPerMonth: 25000, type: "remote", location: null, description: "Work end-to-end on product discovery, interaction design, and visual systems.", published: true, acceptingApplications: true },
+  { id: "int-004", company: "Cloudline Systems", role: "Backend Developer Intern", domain: "Software Development", applicationDeadline: internshipDeadline(30), minCgpa: 8.5, eligibleBranches: ["Computer Science", "Information Technology"], requiredSkills: ["Node.js", "PostgreSQL", "REST APIs"], stipendPerMonth: 40000, type: "hybrid", location: "Pune", description: "Design reliable APIs and services used by thousands of learners every day.", published: true, acceptingApplications: true },
+  { id: "int-005", company: "GreenGrid Energy", role: "Business Strategy Intern", domain: "Business", applicationDeadline: internshipDeadline(30), minCgpa: 7.5, eligibleBranches: ["Any branch"], requiredSkills: ["Research", "Excel", "Communication"], stipendPerMonth: 28000, type: "hybrid", location: "Delhi", description: "Help shape the next generation of sustainable energy products.", published: true, acceptingApplications: true },
 ];
 
 // ---------------------------------------------------------------------------
@@ -468,38 +471,57 @@ async function seedDemoAccounts() {
         company: internship.company,
         role: internship.role,
         domain: internship.domain,
+        stipendPerMonth: internship.stipendPerMonth,
+        type: internship.type,
+        location: internship.location,
+        description: internship.description,
         applicationDeadline: new Date(`${internship.applicationDeadline}T00:00:00.000Z`),
         minCgpa: internship.minCgpa,
         eligibleBranches: internship.eligibleBranches.join("\n"),
         requiredSkills: internship.requiredSkills.join("\n"),
+        published: true,
+        acceptingApplications: true,
       },
       create: {
         ...internship,
         applicationDeadline: new Date(`${internship.applicationDeadline}T00:00:00.000Z`),
         eligibleBranches: internship.eligibleBranches.join("\n"),
         requiredSkills: internship.requiredSkills.join("\n"),
-        published: false,
-        acceptingApplications: false,
       },
     });
   }
   console.log("Demo accounts and internships seeded.");
 }
 
-/** Inserts only missing sample internship rows, as unpublished drafts. */
+/** Seeds sample internships as published listings accepting applications. */
 async function seedInternshipsOnly() {
-  const result = await prisma.internship.createMany({
-    data: internships.map((internship) => ({
-      ...internship,
-      applicationDeadline: new Date(`${internship.applicationDeadline}T00:00:00.000Z`),
-      eligibleBranches: internship.eligibleBranches.join("\n"),
-      requiredSkills: internship.requiredSkills.join("\n"),
-      published: false,
-      acceptingApplications: false,
-    })),
-    skipDuplicates: true,
-  });
-  console.log(`Added ${result.count} missing sample internship record(s) as drafts.`);
+  for (const internship of internships) {
+    await prisma.internship.upsert({
+      where: { id: internship.id },
+      update: {
+        company: internship.company,
+        role: internship.role,
+        domain: internship.domain,
+        stipendPerMonth: internship.stipendPerMonth,
+        type: internship.type,
+        location: internship.location,
+        description: internship.description,
+        applicationDeadline: new Date(`${internship.applicationDeadline}T00:00:00.000Z`),
+        minCgpa: internship.minCgpa,
+        eligibleBranches: internship.eligibleBranches.join("\n"),
+        requiredSkills: internship.requiredSkills.join("\n"),
+        published: true,
+        acceptingApplications: true,
+      },
+      create: {
+        ...internship,
+        applicationDeadline: new Date(`${internship.applicationDeadline}T00:00:00.000Z`),
+        eligibleBranches: internship.eligibleBranches.join("\n"),
+        requiredSkills: internship.requiredSkills.join("\n"),
+      },
+    });
+  }
+  console.log(`Seeded ${internships.length} sample internships as published and accepting applications.`);
 }
 
 // ---------------------------------------------------------------------------

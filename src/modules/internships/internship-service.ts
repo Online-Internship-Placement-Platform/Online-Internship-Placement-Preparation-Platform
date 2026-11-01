@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import type { InternshipInput } from "@/modules/internships/internship-validation";
 
@@ -7,6 +6,10 @@ function serializeInternship(internship: {
   company: string;
   role: string;
   domain: string;
+  stipendPerMonth: number;
+  type: string;
+  location: string | null;
+  description: string;
   applicationDeadline: Date;
   minCgpa: number;
   eligibleBranches: string;
@@ -27,6 +30,10 @@ const internshipSelect = {
   company: true,
   role: true,
   domain: true,
+  stipendPerMonth: true,
+  type: true,
+  location: true,
+  description: true,
   applicationDeadline: true,
   minCgpa: true,
   eligibleBranches: true,
@@ -43,13 +50,21 @@ export async function listAdminInternships() {
   return records.map(serializeInternship);
 }
 
+export async function getAdminInternship(id: string) {
+  const internship = await prisma.internship.findUnique({ where: { id }, select: internshipSelect });
+  return internship ? serializeInternship(internship) : null;
+}
+
 export async function createInternship(input: InternshipInput) {
   const internship = await prisma.internship.create({
     data: {
-      id: randomUUID(),
       company: input.company,
       role: input.role,
       domain: input.domain,
+      stipendPerMonth: input.stipendPerMonth,
+      type: input.type,
+      location: input.location,
+      description: input.description,
       applicationDeadline: new Date(`${input.applicationDeadline}T00:00:00.000Z`),
       minCgpa: input.minCgpa,
       eligibleBranches: input.eligibleBranches.join("\n"),
@@ -69,6 +84,10 @@ export async function updateInternship(id: string, input: InternshipInput) {
       company: input.company,
       role: input.role,
       domain: input.domain,
+      stipendPerMonth: input.stipendPerMonth,
+      type: input.type,
+      location: input.location,
+      description: input.description,
       applicationDeadline: new Date(`${input.applicationDeadline}T00:00:00.000Z`),
       minCgpa: input.minCgpa,
       eligibleBranches: input.eligibleBranches.join("\n"),

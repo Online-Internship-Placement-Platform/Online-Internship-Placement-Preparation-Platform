@@ -25,6 +25,7 @@ describe("listStudentInternshipEligibility", () => {
     });
     internshipFindMany.mockResolvedValue([{
       id: "published-closed", company: "Example Co", role: "Analyst", domain: "Data & Analytics",
+      stipendPerMonth: 0, type: "remote", location: null, description: "",
       applicationDeadline: new Date("2030-06-30T00:00:00.000Z"), published: true, acceptingApplications: false,
       minCgpa: 8, eligibleBranches: "Computer Science", requiredSkills: "React",
     }]);
@@ -43,6 +44,7 @@ describe("listStudentInternshipEligibility", () => {
     userFindUnique.mockResolvedValue({ id: 7, role: "STUDENT", studentProfile: null });
     internshipFindMany.mockResolvedValue([{
       id: "published", company: "Example Co", role: "Engineer", domain: "Software Development",
+      stipendPerMonth: 0, type: "remote", location: null, description: "",
       applicationDeadline: new Date("2030-06-30T00:00:00.000Z"), published: true, acceptingApplications: true,
       minCgpa: 7, eligibleBranches: "Any branch", requiredSkills: "React",
     }]);

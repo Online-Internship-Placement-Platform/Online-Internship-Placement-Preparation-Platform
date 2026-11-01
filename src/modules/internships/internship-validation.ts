@@ -3,12 +3,17 @@ export const INTERNSHIP_DOMAINS = [
   "Data & Analytics",
   "Design",
   "Business",
+  "Other",
 ] as const;
 
 export type InternshipInput = {
   company: string;
   role: string;
   domain: (typeof INTERNSHIP_DOMAINS)[number];
+  stipendPerMonth: number;
+  type: "remote" | "hybrid" | "on-site";
+  location: string | null;
+  description: string;
   applicationDeadline: string;
   minCgpa: number;
   eligibleBranches: string[];
@@ -38,6 +43,19 @@ export function parseInternshipInput(value: unknown):
   if (typeof input.domain !== "string" || !INTERNSHIP_DOMAINS.includes(input.domain as InternshipInput["domain"])) {
     return { ok: false, error: "Choose a valid internship domain." };
   }
+  const stipendPerMonth = typeof input.stipendPerMonth === "number" ? input.stipendPerMonth : Number(input.stipendPerMonth);
+  if (!Number.isFinite(stipendPerMonth) || stipendPerMonth < 0 || stipendPerMonth > 1_000_000_000) {
+    return { ok: false, error: "Monthly stipend must be a non-negative amount." };
+  }
+  if (typeof input.type !== "string" || !["remote", "hybrid", "on-site"].includes(input.type)) {
+    return { ok: false, error: "Choose remote, hybrid, or on-site as the internship type." };
+  }
+  const location = typeof input.location === "string" ? input.location.trim() : "";
+  if (input.type !== "remote" && (!location || location.length > 191)) {
+    return { ok: false, error: "Location is required for hybrid and on-site internships and must be 191 characters or fewer." };
+  }
+  const description = typeof input.description === "string" ? input.description.trim() : "";
+  if (!description || description.length > 20_000) return { ok: false, error: "Description is required and must be 20,000 characters or fewer." };
   if (typeof input.applicationDeadline !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(input.applicationDeadline)) {
     return { ok: false, error: "Choose a valid application deadline." };
   }
@@ -58,6 +76,9 @@ export function parseInternshipInput(value: unknown):
     ok: true,
     data: {
       company, role, domain: input.domain as InternshipInput["domain"],
+      stipendPerMonth, type: input.type as InternshipInput["type"],
+      location: input.type === "remote" ? null : location,
+      description,
       applicationDeadline: input.applicationDeadline,
       minCgpa, eligibleBranches, requiredSkills,
       published: input.published,

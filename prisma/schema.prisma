@@ -162,10 +162,14 @@ model TestAttempt {
 
 // Internship and application management
 model Internship {
-  id                    String        @id
+  id                    String        @id @default(cuid())
   company               String
   role                  String
   domain                String        @default("Other") @db.VarChar(100)
+  stipendPerMonth       Float         @default(0) @map("stipend_per_month")
+  type                  String        @default("remote") @db.VarChar(20)
+  location              String?       @db.VarChar(191)
+  description           String        @db.Text
   applicationDeadline   DateTime      @db.Date
   published             Boolean       @default(false)
   acceptingApplications Boolean       @default(false)
