@@ -533,6 +533,10 @@ async function main() {
     await seedInternshipsOnly();
     return;
   }
+  if (process.argv.includes("--recommended-videos-only")) {
+    await seedRecommendedVideos();
+    return;
+  }
   await seedPlacementTests();
   await seedRecommendedVideos();
   await seedDemoAccounts();
