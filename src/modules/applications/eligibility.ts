@@ -1,13 +1,11 @@
 export interface StudentEligibilityProfile {
   cgpa: number;
   branch: string;
-  skills: unknown;
 }
 
 export interface InternshipEligibilityRequirements {
   minCgpa: number;
   eligibleBranches: readonly string[];
-  requiredSkills: readonly string[];
   applicationDeadline: string | Date;
 }
 
@@ -41,27 +39,6 @@ function normalizeStringList(values: unknown): string[] | null {
   }
 
   return values.map(normalizeName);
-}
-
-export function normalizeStudentSkills(value: unknown): string[] | null {
-  const normalizePreservingCase = (skills: unknown): string[] | null => {
-    if (!Array.isArray(skills) || !skills.every((skill) => typeof skill === "string" && skill.trim().length > 0)) return null;
-    return skills.map((skill) => (skill as string).trim());
-  };
-  if (Array.isArray(value)) return normalizePreservingCase(value);
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!trimmed) return [];
-  if (trimmed.startsWith("[")) {
-    try {
-      const parsed: unknown = JSON.parse(trimmed);
-      if (Array.isArray(parsed)) return normalizePreservingCase(parsed);
-    } catch {
-      return null;
-    }
-    return null;
-  }
-  return normalizePreservingCase(trimmed.split(/[\n,;|]/).map((skill) => skill.trim()).filter(Boolean));
 }
 
 function parseDeadline(value: string | Date): Date | null {
@@ -158,21 +135,6 @@ export function getEligibilityChecks(
   if (eligibleBranches === null || eligibleBranches.length === 0) branchReasons.push("Internship must list at least one eligible branch.");
   else if (studentBranch.length > 0 && !eligibleBranches.includes("any branch") && !eligibleBranches.includes(studentBranch)) branchReasons.push("Student branch is not eligible for this internship.");
   checks.push({ criterion: "Branch", eligible: branchReasons.length === 0, determinate: studentBranch.length > 0 && eligibleBranches !== null && eligibleBranches.length > 0, reasons: branchReasons });
-
-  const studentSkills = normalizeStudentSkills(student.skills)?.map(normalizeName) ?? null;
-  const requiredSkills = normalizeStringList(internship.requiredSkills);
-  if (studentSkills === null) {
-    checks.push({ criterion: "Skills", eligible: false, determinate: false, reasons: ["Student skills must be a valid list of skill names."] });
-  } else if (requiredSkills === null) {
-    checks.push({ criterion: "Skills", eligible: false, determinate: false, reasons: ["Internship required skills must be a valid list of skill names."] });
-  } else if (requiredSkills.length === 0) {
-    checks.push({ criterion: "Skills", eligible: true, determinate: true, reasons: [] });
-  } else {
-    for (const skill of requiredSkills) {
-      const eligible = studentSkills.includes(skill);
-      checks.push({ criterion: skill, eligible, determinate: true, reasons: eligible ? [] : [`Student is missing required skill: ${skill}.`] });
-    }
-  }
 
   const deadline = parseDeadline(internship.applicationDeadline);
   const deadlineReasons: string[] = [];

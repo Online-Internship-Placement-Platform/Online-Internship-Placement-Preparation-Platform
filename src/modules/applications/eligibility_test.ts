@@ -4,7 +4,6 @@ import {
   evaluateStudentEligibility,
   getEligibilityChecks,
   isInternshipOpenForApplications,
-  normalizeStudentSkills,
   type InternshipEligibilityRequirements,
   type StudentEligibilityProfile,
 } from "./eligibility";
@@ -12,13 +11,11 @@ import {
 const eligibleStudent: StudentEligibilityProfile = {
   cgpa: 8.2,
   branch: " Computer Science ",
-  skills: ["TypeScript", " React ", "SQL"],
 };
 
 const eligibleInternship: InternshipEligibilityRequirements = {
   minCgpa: 7.5,
   eligibleBranches: ["Information Technology", "computer science"],
-  requiredSkills: ["react", " SQL "],
   applicationDeadline: "2030-06-30",
 };
 
@@ -51,7 +48,7 @@ const tests: Array<{ name: string; run: () => void }> = [
     run: () => assert.equal(isInternshipOpenForApplications(true, true, "2030-02-30", now), false),
   },
   {
-    name: "accepts an eligible student and normalizes branch and skill names",
+    name: "accepts an eligible student using branch and CGPA",
     run: () => assert.deepEqual(checkEligibility(eligibleStudent, eligibleInternship, now), { eligible: true, status: "eligible", reasons: [] }),
   },
   {
@@ -78,35 +75,30 @@ const tests: Array<{ name: string; run: () => void }> = [
     ),
   },
   {
-    name: "reports each missing required skill",
+    name: "does not use student or employer skills as eligibility criteria",
     run: () => {
-      const result = checkEligibility({ ...eligibleStudent, skills: ["React"] }, eligibleInternship, now);
-      assert.deepEqual(result.reasons, ["Student is missing required skill: sql."]);
+      const studentWithNoMatchingSkills = { ...eligibleStudent, skills: [] };
+      const internshipWithSkillRequirements = { ...eligibleInternship, requiredSkills: ["Rust", "Go"] };
+      const result = checkEligibility(studentWithNoMatchingSkills, internshipWithSkillRequirements, now);
+      assert.deepEqual(result, { eligible: true, status: "eligible", reasons: [] });
+      assert.deepEqual(getEligibilityChecks(studentWithNoMatchingSkills, internshipWithSkillRequirements, now).map((check) => check.criterion), ["CGPA", "Branch", "Deadline"]);
     },
   },
   {
-    name: "normalizes JSON and delimited saved-skill formats",
-    run: () => {
-      assert.deepEqual(normalizeStudentSkills('["React", "SQL"]'), ["React", "SQL"]);
-      assert.deepEqual(normalizeStudentSkills("React, SQL"), ["React", "SQL"]);
-      assert.equal(checkEligibility({ ...eligibleStudent, skills: "React, TypeScript, SQL" }, eligibleInternship, now).status, "eligible");
-    },
-  },
-  {
-    name: "returns individual criterion results for the eligibility UI",
+    name: "returns CGPA, branch, and deadline results for the eligibility UI",
     run: () => {
       const checks = getEligibilityChecks(eligibleStudent, eligibleInternship, now);
       assert.equal(checks.find((check) => check.criterion === "CGPA")?.eligible, true);
       assert.equal(checks.find((check) => check.criterion === "Branch")?.eligible, true);
-      assert.equal(checks.find((check) => check.criterion === "react")?.eligible, true);
-      assert.deepEqual(checks.find((check) => check.criterion === "sql")?.reasons, []);
+      assert.equal(checks.find((check) => check.criterion === "Deadline")?.eligible, true);
+      assert.equal(checks.length, 3);
     },
   },
   {
     name: "does not treat missing profile fields as eligible",
     run: () => {
       const result = checkEligibility(
-        { cgpa: Number.NaN, branch: "", skills: [] },
+        { cgpa: Number.NaN, branch: "" },
         eligibleInternship,
         now,
       );
@@ -114,7 +106,6 @@ const tests: Array<{ name: string; run: () => void }> = [
       assert.equal(result.status, "undetermined");
       assert.ok(result.reasons.includes("Student CGPA must be a finite number from 0 to 10."));
       assert.ok(result.reasons.includes("Student branch is required."));
-      assert.ok(result.reasons.includes("Student is missing required skill: react."));
     },
   },
   {
@@ -125,13 +116,14 @@ const tests: Array<{ name: string; run: () => void }> = [
     ),
   },
   {
-    name: "uses each internship's own CGPA and skill requirements",
+    name: "uses each internship's own CGPA requirement without checking skills",
     run: () => {
       const stricter = { ...eligibleInternship, minCgpa: 8.5, requiredSkills: ["React", "Python"] };
-      const result = evaluateStudentEligibility(eligibleStudent, stricter, now).eligibility;
+      const studentWithoutMatchingSkills = { ...eligibleStudent, skills: [] };
+      const result = evaluateStudentEligibility(studentWithoutMatchingSkills, stricter, now).eligibility;
       assert.equal(result.status, "ineligible");
       assert.ok(result.reasons.includes("Student CGPA is below the internship minimum."));
-      assert.ok(result.reasons.includes("Student is missing required skill: python."));
+      assert.equal(result.reasons.some((reason) => reason.includes("skill")), false);
     },
   },
   {
@@ -145,15 +137,13 @@ const tests: Array<{ name: string; run: () => void }> = [
     name: "collects multiple simultaneous failures",
     run: () => {
       const result = checkEligibility(
-        { cgpa: 6, branch: "Arts", skills: [] },
+        { cgpa: 6, branch: "Arts" },
         { ...eligibleInternship, applicationDeadline: "2030-05-31" },
         now,
       );
       assert.deepEqual(result.reasons, [
         "Student CGPA is below the internship minimum.",
         "Student branch is not eligible for this internship.",
-        "Student is missing required skill: react.",
-        "Student is missing required skill: sql.",
         "Application deadline has passed.",
       ]);
     },

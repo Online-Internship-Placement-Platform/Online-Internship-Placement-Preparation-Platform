@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { AppShell, SectionHeading, StatusBadge } from "@/components/app-shell";
 import { formatDate } from "@/lib/placement-data";
 
@@ -29,7 +29,7 @@ type ApplicationAvailability = {
   eligibilityReasons?: string[];
   eligibilityChecks?: EligibilityCheck[];
   profileResumeAvailable?: boolean;
-  student?: { name: string | null; email: string; branch: string | null; cgpa: number | null; skills: string[] };
+  student?: { name: string | null; email: string; branch: string | null; cgpa: number | null };
 };
 
 const MAX_RESUME_SIZE = 5 * 1024 * 1024;
@@ -37,27 +37,12 @@ const MAX_RESUME_SIZE = 5 * 1024 * 1024;
 export function InternshipDetail({ id }: { id: string }) {
   const [availability, setAvailability] = useState<ApplicationAvailability | null>(null);
   const [availabilityError, setAvailabilityError] = useState("");
-  const [editingSkills, setEditingSkills] = useState(false);
-  const [draftSkills, setDraftSkills] = useState<string[]>([]);
-  const [skillInput, setSkillInput] = useState("");
-  const [savingSkills, setSavingSkills] = useState(false);
-  const [skillMessage, setSkillMessage] = useState("");
-  const [skillError, setSkillError] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [resume, setResume] = useState<File | null>(null);
   const [resumeUrl, setResumeUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
-
-  const refreshAvailability = useCallback(async () => {
-    setAvailabilityError("");
-    const response = await fetch(`/api/internships/${encodeURIComponent(id)}/applications`);
-    const result = await response.json() as ApplicationAvailability & { error?: string };
-    if (!response.ok) throw new Error(result.error ?? "Could not check application availability.");
-    setAvailability(result);
-    setDraftSkills(result.student?.skills ?? []);
-  }, [id]);
 
   useEffect(() => {
     let active = true;
@@ -67,7 +52,6 @@ export function InternshipDetail({ id }: { id: string }) {
         if (!response.ok) throw new Error(result.error ?? "Could not check application availability.");
         if (active) {
           setAvailability(result);
-          setDraftSkills(result.student?.skills ?? []);
         }
       })
       .catch((cause: unknown) => {
@@ -75,49 +59,6 @@ export function InternshipDetail({ id }: { id: string }) {
       });
     return () => { active = false; };
   }, [id]);
-
-  function addSkill() {
-    const skill = skillInput.trim();
-    setSkillError("");
-    if (!skill) return;
-    if (skill.length > 40) { setSkillError("Skill names must be 40 characters or fewer."); return; }
-    if (draftSkills.some((saved) => saved.trim().toLocaleLowerCase() === skill.toLocaleLowerCase())) {
-      setSkillError("That skill is already in your list.");
-      return;
-    }
-    if (draftSkills.length >= 50) { setSkillError("You can save up to 50 skills."); return; }
-    setDraftSkills((current) => [...current, skill]);
-    setSkillInput("");
-  }
-
-  function handleSkillKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      addSkill();
-    }
-  }
-
-  async function saveSkills() {
-    setSavingSkills(true);
-    setSkillError("");
-    setSkillMessage("");
-    try {
-      const response = await fetch("/api/student/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ skills: draftSkills }),
-      });
-      const result = await response.json() as { skills?: string[]; error?: string };
-      if (!response.ok) throw new Error(result.error ?? "Your skills could not be saved.");
-      await refreshAvailability();
-      setEditingSkills(false);
-      setSkillMessage("Skills saved. Eligibility has been refreshed.");
-    } catch (cause) {
-      setSkillError(cause instanceof Error ? cause.message : "Your skills could not be saved. Please try again.");
-    } finally {
-      setSavingSkills(false);
-    }
-  }
 
   function chooseResume(file: File | undefined) {
     setError("");
@@ -162,8 +103,6 @@ export function InternshipDetail({ id }: { id: string }) {
   const displayedOpen = availability?.isOpen ?? false;
   const cgpaCheck = availability?.eligibilityChecks?.find((check) => check.criterion === "CGPA");
   const branchCheck = availability?.eligibilityChecks?.find((check) => check.criterion === "Branch");
-  const requirementChecks = availability?.eligibilityChecks?.filter((check) => check.criterion !== "Deadline" && check.criterion !== "CGPA" && check.criterion !== "Branch") ?? [];
-  const savedSkills = availability?.student?.skills ?? [];
 
   return <AppShell title={internship.role} eyebrow="Internship details">
     <Link href="/student/internships" className="mb-6 inline-block text-xs font-semibold text-[#176b50]">← Back to directory</Link>
@@ -172,29 +111,16 @@ export function InternshipDetail({ id }: { id: string }) {
         <div className="mb-8 flex items-start justify-between"><div><div className="mb-2 text-sm font-semibold text-[#176b50]">{internship.company}</div><h2 className="text-2xl font-semibold tracking-tight">{internship.role}</h2><p className="mt-2 text-sm text-[#6e786f]">{internship.domain}</p></div><StatusBadge status={displayedOpen ? "Open" : "Closed"} /></div>
         <SectionHeading title="About the role" /><p className="mb-8 whitespace-pre-wrap text-sm leading-7 text-[#5e6b61]">{internship.description || "No description has been added yet."}</p>
         <SectionHeading title="Opportunity details" /><div className="mb-8 grid gap-3 sm:grid-cols-2"><Requirement label="Monthly stipend" value={new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(internship.stipendPerMonth)} okay /><Requirement label="Work type" value={internship.type === "on-site" ? "On-site" : internship.type[0].toUpperCase() + internship.type.slice(1)} okay />{internship.type !== "remote" && <Requirement label="Location" value={internship.location || "Not provided"} okay />}</div>
-        <SectionHeading title="Required skills" /><div className="mb-8 flex flex-wrap gap-2">{internship.requiredSkills.map((skill) => <span className="rounded-lg border border-[#dce5de] bg-[#f7faf7] px-3 py-2 text-xs font-medium text-[#405147]" key={skill}>{skill}</span>)}</div>
-        <div className="mb-3 flex items-center justify-between"><SectionHeading title="Eligibility requirements" />{!editingSkills && <button type="button" onClick={() => { setDraftSkills([...savedSkills]); setEditingSkills(true); setSkillMessage(""); setSkillError(""); }} className="text-xs font-semibold text-[#176b50] underline">Edit skills</button>}</div>
+        <SectionHeading title="Skills mentioned by employer" /><p className="-mt-5 mb-3 text-xs text-[#7b857c]">For reference only; skill match is not used to determine application eligibility.</p><div className="mb-8 flex flex-wrap gap-2">{internship.requiredSkills.map((skill) => <span className="rounded-lg border border-[#dce5de] bg-[#f7faf7] px-3 py-2 text-xs font-medium text-[#405147]" key={skill}>{skill}</span>)}</div>
+        <SectionHeading title="Eligibility requirements" />
         <div className="grid gap-3 sm:grid-cols-2"><Requirement label="Eligible branches" value={internship.eligibleBranches.join(", ")} okay={branchCheck?.eligible === true} /><Requirement label="Minimum CGPA" value={`${internship.minCgpa} / 10`} okay={cgpaCheck?.eligible === true} /></div>
         {availability && <section className="mt-5 rounded-lg border border-[#e2e7e1] bg-[#fafbf9] p-4" aria-live="polite">
           <h3 className="mb-3 text-sm font-semibold">Your eligibility</h3>
           <ul className="space-y-2 text-xs">
             <EligibilityRow label={`CGPA ${availability.student?.cgpa ?? "Not set"} / 10 (minimum ${internship.minCgpa} / 10)`} eligible={cgpaCheck?.eligible === true} reason={cgpaCheck?.reasons.join(" ")} />
             <EligibilityRow label={`Branch: ${availability.student?.branch || "Not set"}`} eligible={branchCheck?.eligible === true} reason={branchCheck?.reasons.join(" ")} />
-            {requirementChecks.map((check) => {
-              const skillLabel = internship.requiredSkills.find((skill) => skill.trim().toLocaleLowerCase() === check.criterion) ?? check.criterion;
-              return <EligibilityRow key={check.criterion} label={`Skill: ${skillLabel}`} eligible={check.eligible} reason={check.reasons.join(" ")} />;
-            })}
           </ul>
         </section>}
-        {editingSkills && <section className="mt-5 rounded-lg border border-[#dce5de] bg-white p-4" aria-label="Edit your skills">
-          <h3 className="text-sm font-semibold">Your saved skills</h3>
-          <p className="mt-1 text-xs text-[#7b857c]">Only add skills you genuinely have. Your changes update your student profile.</p>
-          <div className="my-3 flex flex-wrap gap-2">{draftSkills.length ? draftSkills.map((skill, index) => <span key={`${skill}-${index}`} className="inline-flex items-center gap-2 rounded-lg border border-[#dce5de] bg-[#f7faf7] px-3 py-2 text-xs">{skill}<button type="button" aria-label={`Remove ${skill}`} onClick={() => setDraftSkills((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="font-bold text-[#b94b48]">×</button></span>) : <span className="text-xs text-[#7b857c]">No skills saved yet.</span>}</div>
-          <div className="flex gap-2"><input value={skillInput} onChange={(event) => setSkillInput(event.currentTarget.value)} onKeyDown={handleSkillKeyDown} maxLength={40} aria-label="Add a skill" placeholder="Add a skill you have" className="min-w-0 flex-1 rounded-lg border border-[#dfe5df] bg-[#fafbf9] px-3 py-2 text-xs outline-none focus:border-[#176b50]" /><button type="button" onClick={addSkill} className="rounded-lg border border-[#dfe5df] px-3 py-2 text-xs font-semibold text-[#176b50]">Add</button></div>
-          {skillError && <p role="alert" className="mt-3 text-xs text-[#b94b48]">{skillError}</p>}
-          <div className="mt-4 flex gap-2"><button type="button" disabled={savingSkills} onClick={() => void saveSkills()} className="rounded-lg bg-[#176b50] px-4 py-2 text-xs font-semibold text-white disabled:bg-[#b8c2ba]">{savingSkills ? "Saving…" : "Save changes"}</button><button type="button" disabled={savingSkills} onClick={() => { setEditingSkills(false); setDraftSkills([...savedSkills]); setSkillError(""); }} className="rounded-lg border border-[#dfe5df] px-4 py-2 text-xs font-semibold text-[#526057]">Cancel</button></div>
-        </section>}
-        {skillMessage && <p role="status" className="mt-3 text-xs text-[#176b50]">{skillMessage}</p>}
       </div>
 
       <aside><div className="sticky top-6 rounded-xl border border-[#e2e7e1] bg-white p-6">
