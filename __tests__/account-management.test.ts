@@ -284,7 +284,7 @@ describe("Issue #10 — Account deletion", () => {
 
     expect(response.status).toBe(403);
     expect(await response.json()).toEqual({
-      error: "At least two super-admin accounts must exist before one can be deleted.",
+      error: "Cannot delete - yours is the only super admin account currently existing.",
     });
     expect(mocks.userDelete).not.toHaveBeenCalled();
     expect(mocks.clearSession).not.toHaveBeenCalled();
