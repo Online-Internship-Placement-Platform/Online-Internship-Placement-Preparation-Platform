@@ -17,14 +17,14 @@ export async function GET(request: Request) {
       select: { status: true, updatedAt: true },
     });
     if (!accountRequest) {
-      return NextResponse.json({ error: "No admin account request was found for this email." }, { status: 404 });
+      return NextResponse.json({ error: "No account request was found for this email." }, { status: 404 });
     }
 
     return NextResponse.json({ status: accountRequest.status, updatedAt: accountRequest.updatedAt }, {
       headers: { "Cache-Control": "private, no-store" },
     });
   } catch (error) {
-    console.error("Unable to check admin account request status.", error);
+    console.error("Unable to check account request status.", error);
     return NextResponse.json({ error: "Unable to check request status." }, { status: 500 });
   }
 }
@@ -50,7 +50,7 @@ export async function PATCH(request: Request) {
     }
 
     const result = await prisma.accountCreationRequest.updateMany({
-      where: { email, role: "ADMIN", status: "REJECTED" },
+      where: { email, role: { in: ["ADMIN", "SUPER_ADMIN"] }, status: "REJECTED" },
       data: { status: "PENDING" },
     });
     if (result.count === 0) {
@@ -61,7 +61,7 @@ export async function PATCH(request: Request) {
       headers: { "Cache-Control": "private, no-store" },
     });
   } catch (error) {
-    console.error("Unable to resubmit admin account request.", error);
+    console.error("Unable to resubmit account request.", error);
     return NextResponse.json({ error: "Unable to resubmit request. Please try again." }, { status: 500 });
   }
 }
@@ -83,11 +83,16 @@ export async function POST(request: Request) {
   const name = typeof values.name === "string" ? values.name.trim() : "";
   const email = typeof values.email === "string" ? values.email.trim().toLowerCase() : "";
   const password = typeof values.password === "string" ? values.password : "";
+  const role = values.role === undefined || values.role === "ADMIN"
+    ? "ADMIN"
+    : values.role === "SUPER_ADMIN"
+      ? "SUPER_ADMIN"
+      : null;
 
-  if (!name || name.length > 150 || !emailPattern.test(email) ||
+  if (!role || !name || name.length > 150 || !emailPattern.test(email) ||
       email.length > 255 || password.length < 8 || password.length > 72) {
     return NextResponse.json(
-      { error: "Enter a valid name, email, and password of 8–72 characters." },
+      { error: "Choose a valid account type and enter a valid name, email, and password of 8–72 characters." },
       { status: 400 },
     );
   }
@@ -111,16 +116,16 @@ export async function POST(request: Request) {
         name,
         email,
         passwordHash: await hashPassword(password),
-        role: "ADMIN",
+        role,
       },
     });
 
     return NextResponse.json(
-      { message: "Admin account request submitted for super-admin approval." },
+      { message: `${role === "SUPER_ADMIN" ? "Super-admin" : "Admin"} account request submitted for super-admin approval.` },
       { status: 201 },
     );
   } catch (error) {
-    console.error("Admin account request failed.", error);
+    console.error("Account request failed.", error);
     return NextResponse.json({ error: "Unable to submit the account request." }, { status: 500 });
   }
 }

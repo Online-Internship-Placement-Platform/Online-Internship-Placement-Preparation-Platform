@@ -26,7 +26,7 @@ export async function POST(_request: Request, { params }: Context) {
     const result = await prisma.accountCreationRequest.updateMany({
       where: {
         id: requestId,
-        role: "ADMIN",
+        role: { in: ["ADMIN", "SUPER_ADMIN"] },
         status: "PENDING",
       },
       data: { status: "REJECTED" },
@@ -39,9 +39,9 @@ export async function POST(_request: Request, { params }: Context) {
       );
     }
 
-    return NextResponse.json({ message: "Admin account request rejected." });
+    return NextResponse.json({ message: "Account request rejected." });
   } catch (error) {
-    console.error("Admin rejection failed.", error);
+    console.error("Account rejection failed.", error);
     return NextResponse.json({ error: "Unable to reject request." }, { status: 500 });
   }
 }

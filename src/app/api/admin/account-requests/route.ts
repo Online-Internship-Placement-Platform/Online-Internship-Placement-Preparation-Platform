@@ -15,14 +15,14 @@ export async function GET() {
 
   try {
     const requests = await prisma.accountCreationRequest.findMany({
-      where: { role: "ADMIN", status: "PENDING" },
-      select: { id: true, name: true, email: true, createdAt: true },
+      where: { role: { in: ["ADMIN", "SUPER_ADMIN"] }, status: "PENDING" },
+      select: { id: true, name: true, email: true, role: true, createdAt: true },
       orderBy: { createdAt: "asc" },
     });
 
     return NextResponse.json({ requests });
   } catch (error) {
-    console.error("Unable to load admin account requests.", error);
+    console.error("Unable to load account requests.", error);
     return NextResponse.json({ error: "Unable to load requests." }, { status: 500 });
   }
 }

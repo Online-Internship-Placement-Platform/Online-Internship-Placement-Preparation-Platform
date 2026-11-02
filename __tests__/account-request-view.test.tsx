@@ -11,6 +11,7 @@ const pendingRequest = {
   id: 25,
   name: "Jordan Example",
   email: "jordan@example.test",
+  role: "ADMIN" as const,
   createdAt: "2026-10-28T12:00:00.000Z",
 };
 
@@ -42,7 +43,7 @@ describe("AccountRequestsView", () => {
     const fetchMock = vi.mocked(globalThis.fetch);
     fetchMock
       .mockResolvedValueOnce({ ok: true, json: async () => ({ requests: [pendingRequest] }) } as Response)
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ message: `Admin account ${decision === "approve" ? "approved" : "rejected"}.` }) } as Response)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ message: "Account request processed." }) } as Response)
       .mockResolvedValueOnce({ ok: true, json: async () => ({ requests: [] }) } as Response);
 
     render(<AccountRequestsView />);
@@ -50,7 +51,7 @@ describe("AccountRequestsView", () => {
     fireEvent.click(await screen.findByRole("button", { name: action }));
 
     expect(await screen.findByText("You’re all caught up")).toBeDefined();
-    expect(await screen.findByText(`Admin account ${decision === "approve" ? "approved" : "rejected"}.`)).toBeDefined();
+    expect(await screen.findByText("Account request processed.")).toBeDefined();
     expect(fetchMock).toHaveBeenNthCalledWith(2, `/api/admin/account-requests/25/${decision}`, { method: "POST" });
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });

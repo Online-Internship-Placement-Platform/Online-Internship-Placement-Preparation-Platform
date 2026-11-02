@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   requestFindMany: vi.fn(),
   requestUpdate: vi.fn(),
   requestUpdateMany: vi.fn(),
+  userCreate: vi.fn(),
   transaction: vi.fn(),
   hashPassword: vi.fn(),
   getSession: vi.fn(),
@@ -71,6 +72,7 @@ beforeEach(() => {
   mocks.getSession.mockResolvedValue(adminSession);
   mocks.clearSession.mockResolvedValue(undefined);
   mocks.userDelete.mockResolvedValue({ id: 2 });
+  mocks.userCreate.mockResolvedValue({ id: 10 });
   mocks.requestFindMany.mockResolvedValue([]);
   mocks.requestUpdate.mockResolvedValue({});
   mocks.requestUpdateMany.mockResolvedValue({ count: 1 });
@@ -80,7 +82,7 @@ beforeEach(() => {
         findUnique: mocks.requestFindUnique,
         update: mocks.requestUpdate,
       },
-      user: { create: vi.fn().mockResolvedValue({ id: 10 }) },
+      user: { create: mocks.userCreate },
     }),
   );
 });
@@ -104,6 +106,43 @@ describe("Issue #9 — Admin account requests", () => {
         role: "ADMIN",
       }),
     });
+  });
+
+  it("creates a pending super-admin request", async () => {
+    const response = await createAdminRequest(
+      jsonRequest({
+        name: "Test Super Admin",
+        email: "SUPERADMIN@example.com",
+        password: "StrongPass123",
+        role: "SUPER_ADMIN",
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      message: "Super-admin account request submitted for super-admin approval.",
+    });
+    expect(mocks.requestCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        name: "Test Super Admin",
+        email: "superadmin@example.com",
+        role: "SUPER_ADMIN",
+      }),
+    });
+  });
+
+  it("rejects unsupported requested roles", async () => {
+    const response = await createAdminRequest(
+      jsonRequest({
+        name: "Test Student",
+        email: "student@example.com",
+        password: "StrongPass123",
+        role: "STUDENT",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(mocks.requestCreate).not.toHaveBeenCalled();
   });
 
   it("rejects invalid email", async () => {
@@ -143,7 +182,7 @@ describe("Issue #9 — Admin account requests", () => {
     expect(response.status).toBe(200);
     expect(mocks.requestFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { role: "ADMIN", status: "PENDING" },
+        where: { role: { in: ["ADMIN", "SUPER_ADMIN"] }, status: "PENDING" },
       }),
     );
   });
@@ -187,7 +226,7 @@ describe("Issue #9 — Admin account requests", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ status: "PENDING" });
     expect(mocks.requestUpdateMany).toHaveBeenCalledWith({
-      where: { email: "admin@example.com", role: "ADMIN", status: "REJECTED" },
+      where: { email: "admin@example.com", role: { in: ["ADMIN", "SUPER_ADMIN"] }, status: "REJECTED" },
       data: { status: "PENDING" },
     });
   });
@@ -231,6 +270,32 @@ describe("Issue #10 — Account deletion", () => {
 });
 
 describe("Issue #11 — Super-admin approval", () => {
+  it("creates a super-admin account when its request is approved", async () => {
+    mocks.requestFindUnique.mockResolvedValue({
+      id: 10,
+      name: "Test Super Admin",
+      email: "superadmin@example.com",
+      passwordHash: "hashed-password",
+      role: "SUPER_ADMIN",
+      status: "PENDING",
+    });
+
+    const response = await approveRequest(
+      new Request("http://localhost/api/test", { method: "POST" }),
+      routeContext("10"),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.userCreate).toHaveBeenCalledWith({
+      data: {
+        name: "Test Super Admin",
+        email: "superadmin@example.com",
+        passwordHash: "hashed-password",
+        role: "SUPER_ADMIN",
+      },
+    });
+  });
+
   it("blocks a student from approving requests", async () => {
     mocks.getSession.mockResolvedValue(studentSession);
 
@@ -253,7 +318,7 @@ describe("Issue #11 — Super-admin approval", () => {
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
-  it("rejects a pending admin request", async () => {
+  it("rejects a pending account request", async () => {
     mocks.requestUpdateMany.mockResolvedValue({ count: 1 });
 
     const response = await rejectRequest(
@@ -263,7 +328,7 @@ describe("Issue #11 — Super-admin approval", () => {
 
     expect(response.status).toBe(200);
     expect(mocks.requestUpdateMany).toHaveBeenCalledWith({
-      where: { id: 10, role: "ADMIN", status: "PENDING" },
+      where: { id: 10, role: { in: ["ADMIN", "SUPER_ADMIN"] }, status: "PENDING" },
       data: { status: "REJECTED" },
     });
   });

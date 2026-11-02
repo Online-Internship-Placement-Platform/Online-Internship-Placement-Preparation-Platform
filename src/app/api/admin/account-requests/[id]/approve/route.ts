@@ -28,7 +28,7 @@ export async function POST(_request: Request, { params }: Context) {
         where: { id: requestId },
       });
 
-      if (!accountRequest || accountRequest.role !== "ADMIN" ||
+      if (!accountRequest || (accountRequest.role !== "ADMIN" && accountRequest.role !== "SUPER_ADMIN") ||
           accountRequest.status !== "PENDING") {
         throw new Error("REQUEST_NOT_PENDING");
       }
@@ -38,7 +38,7 @@ export async function POST(_request: Request, { params }: Context) {
           name: accountRequest.name,
           email: accountRequest.email,
           passwordHash: accountRequest.passwordHash,
-          role: "ADMIN",
+          role: accountRequest.role,
         },
       });
 
@@ -48,7 +48,7 @@ export async function POST(_request: Request, { params }: Context) {
       });
     });
 
-    return NextResponse.json({ message: "Admin account approved." });
+    return NextResponse.json({ message: "Account request approved." });
   } catch (error) {
     if (error instanceof Error && error.message === "REQUEST_NOT_PENDING") {
       return NextResponse.json(
@@ -57,7 +57,7 @@ export async function POST(_request: Request, { params }: Context) {
       );
     }
 
-    console.error("Admin approval failed.", error);
+    console.error("Account approval failed.", error);
     return NextResponse.json({ error: "Unable to approve request." }, { status: 500 });
   }
 }
