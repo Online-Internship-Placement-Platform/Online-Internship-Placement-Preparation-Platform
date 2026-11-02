@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   userFindUnique: vi.fn(),
   userDelete: vi.fn(),
+  userCount: vi.fn(),
   requestFindUnique: vi.fn(),
   requestCreate: vi.fn(),
   requestFindMany: vi.fn(),
@@ -21,6 +22,7 @@ vi.mock("@/lib/prisma", () => ({
     user: {
       findUnique: mocks.userFindUnique,
       delete: mocks.userDelete,
+      count: mocks.userCount,
     },
     accountCreationRequest: {
       findUnique: mocks.requestFindUnique,
@@ -72,6 +74,7 @@ beforeEach(() => {
   mocks.getSession.mockResolvedValue(adminSession);
   mocks.clearSession.mockResolvedValue(undefined);
   mocks.userDelete.mockResolvedValue({ id: 2 });
+  mocks.userCount.mockResolvedValue(2);
   mocks.userCreate.mockResolvedValue({ id: 10 });
   mocks.requestFindMany.mockResolvedValue([]);
   mocks.requestUpdate.mockResolvedValue({});
@@ -82,7 +85,7 @@ beforeEach(() => {
         findUnique: mocks.requestFindUnique,
         update: mocks.requestUpdate,
       },
-      user: { create: mocks.userCreate },
+      user: { create: mocks.userCreate, count: mocks.userCount, delete: mocks.userDelete },
     }),
   );
 });
@@ -250,6 +253,43 @@ describe("Issue #10 — Account deletion", () => {
     expect(mocks.clearSession).toHaveBeenCalled();
   });
 
+  it("deletes the signed-in admin's account and clears session", async () => {
+    mocks.getSession.mockResolvedValue({ userId: 3, role: "admin" });
+
+    const response = await deleteAccount();
+
+    expect(response.status).toBe(200);
+    expect(mocks.userDelete).toHaveBeenCalledWith({ where: { id: 3 } });
+    expect(mocks.clearSession).toHaveBeenCalled();
+  });
+
+  it("deletes a super-admin account when at least two exist", async () => {
+    mocks.getSession.mockResolvedValue({ userId: 1, role: "super-admin" });
+    mocks.userCount.mockResolvedValue(2);
+
+    const response = await deleteAccount();
+
+    expect(response.status).toBe(200);
+    expect(mocks.userCount).toHaveBeenCalledWith({ where: { role: "SUPER_ADMIN" } });
+    expect(mocks.userDelete).toHaveBeenCalledWith({ where: { id: 1 } });
+    expect(mocks.transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "Serializable" });
+    expect(mocks.clearSession).toHaveBeenCalled();
+  });
+
+  it("prevents deleting the last super-admin account", async () => {
+    mocks.getSession.mockResolvedValue({ userId: 1, role: "super-admin" });
+    mocks.userCount.mockResolvedValue(1);
+
+    const response = await deleteAccount();
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({
+      error: "At least two super-admin accounts must exist before one can be deleted.",
+    });
+    expect(mocks.userDelete).not.toHaveBeenCalled();
+    expect(mocks.clearSession).not.toHaveBeenCalled();
+  });
+
   it("rejects unauthenticated deletion", async () => {
     mocks.getSession.mockResolvedValue(null);
 
@@ -259,14 +299,6 @@ describe("Issue #10 — Account deletion", () => {
     expect(mocks.userDelete).not.toHaveBeenCalled();
   });
 
-  it("protects super-admin from deletion", async () => {
-    mocks.getSession.mockResolvedValue(adminSession);
-
-    const response = await deleteAccount();
-
-    expect(response.status).toBe(403);
-    expect(mocks.userDelete).not.toHaveBeenCalled();
-  });
 });
 
 describe("Issue #11 — Super-admin approval", () => {

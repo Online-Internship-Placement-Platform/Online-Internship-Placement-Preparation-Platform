@@ -1,9 +1,12 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const routerReplace = vi.hoisted(() => vi.fn());
+const routerRefresh = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/student/profile",
-  useRouter: () => ({ replace: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ replace: routerReplace, refresh: routerRefresh }),
 }));
 
 const getServerSession = vi.hoisted(() => vi.fn());
@@ -150,6 +153,10 @@ describe("ProfileView", () => {
     vi.stubGlobal("fetch", vi.fn());
   });
 
+  afterEach(() => {
+    cleanup();
+  });
+
   afterAll(() => {
     vi.unstubAllGlobals();
   });
@@ -232,5 +239,30 @@ describe("ProfileView", () => {
     expect(await screen.findByText("updated-cv.pdf")).toBeDefined();
     expect(await screen.findByText("Resume uploaded successfully.")).toBeDefined();
     expect(fetchMock).toHaveBeenCalledWith("/api/profile/resume", expect.objectContaining({ method: "POST" }));
+  });
+
+  it("lets an admin confirm account deletion and redirects to sign in", async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockImplementation(async (input, init) => {
+      if (String(input) === "/api/auth/me") {
+        return { ok: true, json: async () => ({ user: { id: 21, name: "Priya Shah", role: "admin" } }) } as Response;
+      }
+      if (String(input) === "/api/auth/delete-account") {
+        expect(init?.method).toBe("DELETE");
+        return { ok: true, json: async () => ({ message: "Account deleted successfully." }) } as Response;
+      }
+      return { ok: true, json: async () => ({ profile: {
+        id: 21, name: "Priya Shah", email: "priya@inplace.edu", role: "admin",
+      } }) } as Response;
+    });
+
+    render(<ProfileView role="admin" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Delete account" }));
+    expect(screen.getByRole("alertdialog")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Delete my account" }));
+
+    await waitFor(() => expect(routerReplace).toHaveBeenCalledWith("/login"));
+    expect(routerRefresh).toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledWith("/api/auth/delete-account", { method: "DELETE" });
   });
 });

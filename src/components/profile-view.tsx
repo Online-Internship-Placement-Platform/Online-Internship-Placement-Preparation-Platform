@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import type { Role } from "@/lib/placement-data";
 import { AppShell } from "@/components/app-shell";
 
@@ -56,6 +57,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export function ProfileView({ role }: { role: Role }) {
+  const router = useRouter();
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [draft, setDraft] = useState<StudentDraft>(makeDraft(null));
   const [loading, setLoading] = useState(true);
@@ -66,6 +68,9 @@ export function ProfileView({ role }: { role: Role }) {
   const [resumeSuccess, setResumeSuccess] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [confirmingDeletion, setConfirmingDeletion] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deletionError, setDeletionError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -167,6 +172,25 @@ export function ProfileView({ role }: { role: Role }) {
       setResumeError(uploadError instanceof Error ? uploadError.message : "Resume could not be uploaded.");
     } finally {
       setResumeBusy(false);
+    }
+  }
+
+  async function deleteAccount() {
+    setDeletingAccount(true);
+    setDeletionError("");
+
+    try {
+      const response = await fetch("/api/auth/delete-account", { method: "DELETE" });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "Unable to delete account.");
+
+      router.replace("/login");
+      router.refresh();
+    } catch (deleteError) {
+      setDeletionError(deleteError instanceof Error ? deleteError.message : "Unable to delete account.");
+      setConfirmingDeletion(false);
+    } finally {
+      setDeletingAccount(false);
     }
   }
 
@@ -345,6 +369,33 @@ export function ProfileView({ role }: { role: Role }) {
               {resumeSuccess && <p role="status" className="mt-3 text-xs text-[#176b50]">{resumeSuccess}</p>}
             </Section>
           )}
+
+          <Section title="Delete account">
+            <p className="text-sm text-[#6e786f]">
+              {role === "super-admin"
+                ? "Super-admin accounts can be deleted only when at least two super-admin accounts currently exist."
+                : "Permanently delete your account and its associated profile data."}
+            </p>
+            {deletionError && <p role="alert" className="mt-3 text-sm text-[#b94b48]">{deletionError}</p>}
+            {confirmingDeletion ? (
+              <div role="alertdialog" aria-modal="true" aria-labelledby="delete-account-title" aria-describedby="delete-account-description" className="mt-4 rounded-lg border border-[#f1d1ce] bg-[#fff8f7] p-4">
+                <h3 id="delete-account-title" className="text-sm font-semibold text-[#7d302d]">Delete your account permanently?</h3>
+                <p id="delete-account-description" className="mt-1 text-sm text-[#7b5552]">This action cannot be undone. Your session will end immediately.</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button type="button" onClick={() => setConfirmingDeletion(false)} disabled={deletingAccount} className="rounded-lg border border-[#dfe5df] bg-white px-4 py-2.5 text-sm font-semibold text-[#526057] disabled:opacity-60">
+                    Cancel
+                  </button>
+                  <button type="button" onClick={() => void deleteAccount()} disabled={deletingAccount} className="rounded-lg bg-[#b94b48] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#9f3d3a] disabled:cursor-not-allowed disabled:opacity-60">
+                    {deletingAccount ? "Deleting…" : "Delete my account"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" onClick={() => { setDeletionError(""); setConfirmingDeletion(true); }} className="mt-4 rounded-lg border border-[#f1d1ce] bg-white px-4 py-2.5 text-sm font-semibold text-[#b94b48] hover:bg-[#fff8f7]">
+                Delete account
+              </button>
+            )}
+          </Section>
         </form>
       )}
     </AppShell>
