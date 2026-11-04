@@ -25,8 +25,12 @@ describe("transport security configuration", () => {
   });
 
   it("requires MariaDB TLS with certificate verification in production", () => {
+    vi.stubEnv("DATABASE_CA_CERT", "mock-ca-certificate");
     expect(getMariaDbTlsOptions("production")).toEqual({
-      ssl: { rejectUnauthorized: true },
+      ssl: { 
+        ca: "mock-ca-certificate",
+        rejectUnauthorized: true 
+      },
     });
   });
 

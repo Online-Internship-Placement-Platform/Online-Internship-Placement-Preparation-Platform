@@ -32,9 +32,17 @@ export function createLoginHandler({ findUser, setSession }: LoginDependencies) 
       await setSession({ userId: identity.userId, role: identity.role });
       return NextResponse.json({ role: identity.role, route: getDashboardRoute(identity.role) });
     } catch (error) {
-      const errorCode = typeof error === "object" && error !== null && "code" in error ? String(error.code) : "unknown";
-      console.error("Login failed during account lookup or session creation.", { errorCode });
-      return NextResponse.json({ error: "Sign in is temporarily unavailable. Please try again." }, { status: 503 });
+      console.error("Login failed:", error);
+
+      if (error instanceof Error) {
+        console.error("Error message:", error.message);
+        console.error("Stack trace:", error.stack);
+      }
+
+      return NextResponse.json(
+        { error: "Sign in is temporarily unavailable. Please try again." },
+        { status: 503 }
+      );
     }
   };
 }
