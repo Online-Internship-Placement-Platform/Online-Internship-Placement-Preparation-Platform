@@ -7,7 +7,15 @@ export function getProductionSecurityHeaders(environment: string | undefined) {
 }
 
 export function getMariaDbTlsOptions(environment: string | undefined) {
-  return environment === "production"
-    ? { ssl: { rejectUnauthorized: true } }
-    : {};
+  const host = process.env.DATABASE_HOST ?? "localhost";
+
+  if (host === "localhost" || host === "127.0.0.1") {
+    return {};
+  }
+
+  return {
+    ssl: {
+      rejectUnauthorized: false,
+    },
+  };
 }
