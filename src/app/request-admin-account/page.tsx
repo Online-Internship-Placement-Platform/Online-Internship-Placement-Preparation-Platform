@@ -8,6 +8,7 @@ export default function RequestAdminAccountPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"ADMIN" | "SUPER_ADMIN">("ADMIN");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [statusEmail, setStatusEmail] = useState("");
@@ -25,7 +26,7 @@ export default function RequestAdminAccountPage() {
       const response = await fetch("/api/auth/account-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, role }),
       });
 
       const data = await response.json();
@@ -35,13 +36,14 @@ export default function RequestAdminAccountPage() {
         return;
       }
 
-      setMessage("Admin account request submitted successfully! Await super-admin approval.");
+      setMessage(`${role === "SUPER_ADMIN" ? "Super-admin" : "Admin"} account request submitted successfully! Await super-admin approval.`);
       setStatusEmail(email.trim());
       setRequestStatus("PENDING");
       setStatusMessage("");
       setName("");
       setEmail("");
       setPassword("");
+      setRole("ADMIN");
     } catch {
       setMessage("Could not connect to the server. Please try again.");
     } finally {
@@ -93,15 +95,30 @@ export default function RequestAdminAccountPage() {
   return (
     <main className="min-h-screen bg-[#f5f6f2] px-6 py-12 text-[#17211b]">
       <section className="mx-auto max-w-xl">
-        <h1 className="text-3xl font-bold">Request an Admin Account</h1>
+        <h1 className="text-3xl font-bold">Request an Account</h1>
         <p className="mt-3 text-gray-600">
-          Submit your details for review by a super-admin.
+          Choose an account type and submit your details for review by a super-admin.
         </p>
 
         <form
           onSubmit={handleSubmit}
           className="mt-8 space-y-5 rounded-xl border border-[#e2e7e1] bg-white p-6"
         >
+          <div>
+            <label htmlFor="role" className="mb-2 block font-medium">
+              Account type
+            </label>
+            <select
+              id="role"
+              value={role}
+              onChange={(event) => setRole(event.target.value as "ADMIN" | "SUPER_ADMIN")}
+              className="w-full rounded-lg border border-[#dfe5df] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#176b50]"
+            >
+              <option value="ADMIN">Admin</option>
+              <option value="SUPER_ADMIN">Super-admin</option>
+            </select>
+          </div>
+
           <div>
             <label htmlFor="name" className="mb-2 block font-medium">
               Full name
@@ -154,7 +171,7 @@ export default function RequestAdminAccountPage() {
             disabled={loading}
             className="w-full rounded-lg bg-[#176b50] px-4 py-3 text-sm font-semibold text-white hover:bg-[#12563f] disabled:opacity-60"
           >
-            {loading ? "Submitting..." : "Submit Admin Request"}
+            {loading ? "Submitting..." : "Submit Account Request"}
           </button>
 
           {message && (
@@ -166,7 +183,7 @@ export default function RequestAdminAccountPage() {
 
         <section className="mt-6 rounded-xl border border-[#e2e7e1] bg-white p-6">
           <h2 className="text-base font-semibold">Check request status</h2>
-          <p className="mt-1 text-sm text-[#6e786f]">Enter the email address used when submitting your admin request.</p>
+          <p className="mt-1 text-sm text-[#6e786f]">Enter the email address used when submitting your account request.</p>
           <form onSubmit={checkStatus} className="mt-4 flex flex-col gap-3 sm:flex-row">
             <label className="sr-only" htmlFor="status-email">Request email</label>
             <input

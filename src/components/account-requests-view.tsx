@@ -7,6 +7,7 @@ type AccountRequest = {
   id: number;
   name: string;
   email: string;
+  role: "ADMIN" | "SUPER_ADMIN";
   createdAt: string;
 };
 
@@ -64,11 +65,11 @@ export default function AccountRequestsView() {
   }
 
   return (
-    <AppShell role="super-admin" title="Admin account requests" eyebrow="Administration">
+    <AppShell role="super-admin" title="Account requests" eyebrow="Administration">
       <div className="mx-auto w-full max-w-5xl space-y-5">
         <section className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-[#e2e7e1] bg-white p-5 md:p-6">
           <div>
-            <p className="text-sm text-[#6e786f]">Review requests for administrator access and decide who can join the platform.</p>
+            <p className="text-sm text-[#6e786f]">Review admin and super-admin account requests and decide who can join the platform.</p>
             <p className="mt-1 text-xs text-[#9aa49b]">Only pending requests are shown here.</p>
           </div>
           {!loading && !loadError && (
@@ -106,10 +107,10 @@ export default function AccountRequestsView() {
           <section className="rounded-xl border border-[#e2e7e1] bg-white p-10 text-center">
             <div aria-hidden="true" className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-[#e6f2ec] text-lg font-bold text-[#176b50]">✓</div>
             <h2 className="text-sm font-semibold text-[#344238]">You’re all caught up</h2>
-            <p className="mt-1 text-xs text-[#7b857c]">There are no pending admin account requests.</p>
+            <p className="mt-1 text-xs text-[#7b857c]">There are no pending account requests.</p>
           </section>
         ) : (
-          <ul className="grid gap-4 lg:grid-cols-2" aria-label="Pending admin account requests">
+          <ul className="grid gap-4 lg:grid-cols-2" aria-label="Pending account requests">
             {requests.map((request) => (
               <li key={request.id}>
                 <article className="flex h-full flex-col rounded-xl border border-[#e2e7e1] bg-white p-5 md:p-6">
@@ -120,6 +121,7 @@ export default function AccountRequestsView() {
                     <div className="min-w-0 flex-1">
                       <h2 className="truncate text-sm font-semibold text-[#202a23]">{request.name}</h2>
                       <p className="mt-1 break-all text-xs text-[#6e786f]">{request.email}</p>
+                      <p className="mt-1 text-xs font-semibold text-[#526057]">{request.role === "SUPER_ADMIN" ? "Super-admin" : "Admin"}</p>
                     </div>
                     <span className="shrink-0 rounded-md bg-[#fff4df] px-2 py-1 text-[10px] font-bold text-[#a86618]">Pending</span>
                   </div>

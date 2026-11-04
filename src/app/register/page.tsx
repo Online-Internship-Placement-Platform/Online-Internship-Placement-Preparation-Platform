@@ -16,7 +16,8 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const form = new FormData(event.currentTarget);
+      const formElement = event.currentTarget;
+      const form = new FormData(formElement);
       form.set("yearOfStudy", form.get("year") ?? "");
 
       const response = await fetch("/api/auth/register", {
@@ -32,7 +33,7 @@ export default function RegisterPage() {
       }
 
       setMessage(result.message ?? "Account created successfully.");
-      event.currentTarget.reset();
+      formElement.reset();
     } catch {
       setError("Unable to connect. Please try again.");
     } finally {

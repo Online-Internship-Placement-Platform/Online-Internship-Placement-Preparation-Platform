@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/server-session";
 import { listStudentInternshipEligibility } from "@/modules/applications/application-service";
-import { normalizeStudentSkills } from "@/modules/applications/eligibility";
 
 export async function GET() {
   const session = await getServerSession();
@@ -13,13 +12,11 @@ export async function GET() {
     if (result.kind === "student-not-found") {
       return NextResponse.json({ error: "Your student account could not be verified." }, { status: 403 });
     }
-    const profileSkills = normalizeStudentSkills(result.profile?.skills) ?? [];
     return NextResponse.json({
       profile: result.profile ? {
         branch: result.profile.branch,
         cgpa: result.profile.cgpa,
         yearOfStudy: result.profile.yearOfStudy,
-        skills: profileSkills,
         complete: result.profileComplete,
       } : null,
       internships: result.internships,

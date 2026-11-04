@@ -57,7 +57,6 @@ export async function GET(_request: Request, { params }: RouteContext) {
         email: context.student.email,
         branch: context.student.studentProfile?.branch ?? null,
         cgpa: context.student.studentProfile?.cgpa ?? null,
-        skills: Array.isArray(context.student.studentProfile?.skills) ? context.student.studentProfile.skills : [],
       },
       profileResumeAvailable: false,
     }, { headers: { "Cache-Control": "private, no-store" } });

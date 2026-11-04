@@ -15,7 +15,7 @@ describe("GET /api/internships", () => {
     getServerSession.mockResolvedValue({ userId: 42, role: "student" });
     listStudentInternshipEligibility.mockResolvedValue({
       kind: "available",
-      profile: { branch: "Computer Science", cgpa: 8.4, yearOfStudy: "THIRD", skills: ["React"], complete: true },
+      profile: { branch: "Computer Science", cgpa: 8.4, yearOfStudy: "THIRD", complete: true },
       profileComplete: true,
       internships: [{ id: "intern-1", eligibility: { eligible: true, status: "eligible", reasons: [] } }],
     });
@@ -26,7 +26,7 @@ describe("GET /api/internships", () => {
     expect(listStudentInternshipEligibility).toHaveBeenCalledWith(42);
     const body = await response.json();
     expect(body.profile).toEqual({
-      branch: "Computer Science", cgpa: 8.4, yearOfStudy: "THIRD", skills: ["React"], complete: true,
+      branch: "Computer Science", cgpa: 8.4, yearOfStudy: "THIRD", complete: true,
     });
     expect(JSON.stringify(body)).not.toContain("email");
     expect(JSON.stringify(body)).not.toContain("passwordHash");
