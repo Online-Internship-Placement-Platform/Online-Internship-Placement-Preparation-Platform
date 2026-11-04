@@ -20,7 +20,7 @@ export function getMariaDbTlsOptions(environment: string | undefined) {
     // Local development connecting to Aiven.
     return {
       ssl: {
-        ca: readFileSync(process.env.DATABASE_CA_CERT_PATH ?? "./aiven-ca.pem", "utf8"),
+        ca: readFileSync(process.env.DATABASE_CA_CERT_PATH ?? "./certs/aiven-ca.pem", "utf8"),
         rejectUnauthorized: true,
       },
     };
