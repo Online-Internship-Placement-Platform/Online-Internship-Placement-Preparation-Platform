@@ -1,6 +1,3 @@
-
-// Shreya
-
 // This is your Prisma schema file.
 // Learn more: https://pris.ly/d/prisma-schema
 
@@ -43,7 +40,6 @@ model User {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @default(now()) @updatedAt
   studentProfile StudentProfile?
-  posts          Post[]
   applications   Application[]
 }
 
@@ -57,15 +53,6 @@ model StudentProfile {
   resumeData     Bytes?      @db.MediumBlob
   resumeFileName String?     @db.VarChar(255)
   user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model Post {
-  id        Int     @id @default(autoincrement())
-  title     String
-  content   String? @db.Text
-  published Boolean @default(false)
-  author    User    @relation(fields: [authorId], references: [id])
-  authorId  Int
 }
 
 model AccountCreationRequest {
