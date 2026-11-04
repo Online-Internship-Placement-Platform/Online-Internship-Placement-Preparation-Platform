@@ -12,6 +12,14 @@ const adapter = new PrismaMariaDb({
   database: process.env.DATABASE_NAME,
   connectionLimit: 5,
   allowPublicKeyRetrieval: true,
+  logger: {
+    error: (error) => {
+      console.error("[MariaDB adapter error]", error);
+    },
+    network: (info) => {
+      console.error("[MariaDB adapter network]", info);
+    },
+  },
 });
 
 const prisma = new PrismaClient({ adapter });
