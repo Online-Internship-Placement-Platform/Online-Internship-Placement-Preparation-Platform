@@ -6,6 +6,7 @@
   "scripts": {
     "predev": "prisma generate",
     "dev": "next dev",
+    "test:e2e:performance": "playwright test tests/performance.spec.ts",
     "prebuild": "prisma generate",
     "build": "next build",
     "seed:demo": "tsx prisma/seed.ts",
@@ -28,6 +29,7 @@
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/turbopack": "^4",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
