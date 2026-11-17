@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { describe, it } from "vitest";
 import {
   checkEligibility,
   evaluateStudentEligibility,
   getEligibilityChecks,
+  isApplicationDeadlineOpen,
   isInternshipOpenForApplications,
   type InternshipEligibilityRequirements,
   type StudentEligibilityProfile,
@@ -46,6 +48,13 @@ const tests: Array<{ name: string; run: () => void }> = [
   {
     name: "reports availability as closed for invalid deadlines",
     run: () => assert.equal(isInternshipOpenForApplications(true, true, "2030-02-30", now), false),
+  },
+  {
+    name: "accepts a valid timestamp deadline string",
+    run: () => assert.equal(
+      isInternshipOpenForApplications(true, true, "2030-06-30T12:00:00.000Z", new Date("2030-06-30T12:00:00.000Z")),
+      true,
+    ),
   },
   {
     name: "accepts an eligible student using branch and CGPA",
@@ -190,13 +199,14 @@ const tests: Array<{ name: string; run: () => void }> = [
         new Date(Number.NaN),
       );
       assert.deepEqual(result.reasons, ["Application deadline is invalid.", "Current date/time is invalid."]);
+      assert.equal(isApplicationDeadlineOpen(new Date(Number.NaN), now), false);
+      assert.equal(isApplicationDeadlineOpen("   ", now), false);
+      assert.ok(checkEligibility(eligibleStudent, { ...eligibleInternship, eligibleBranches: [] }, now).reasons.includes("Internship must list at least one eligible branch."));
+      assert.ok(checkEligibility(eligibleStudent, { ...eligibleInternship, eligibleBranches: [""] }, now).reasons.includes("Internship must list at least one eligible branch."));
     },
   },
 ];
 
-for (const test of tests) {
-  test.run();
-  console.log(`✓ ${test.name}`);
-}
-
-console.log(`\n${tests.length} eligibility tests passed.`);
+describe("application eligibility", () => {
+  for (const test of tests) it(test.name, test.run);
+});

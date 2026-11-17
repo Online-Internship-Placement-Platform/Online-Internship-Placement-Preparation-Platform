@@ -1,7 +1,12 @@
-import assert from "node:assert/strict";
+import { describe, expect, it } from "vitest";
 import { applicationResumeFilter } from "./application-access";
 
-assert.deepEqual(applicationResumeFilter(13, 8, false), { id: 13, studentId: 8 });
-assert.deepEqual(applicationResumeFilter(13, 8, true), { id: 13 });
+describe("application resume ownership filter", () => {
+  it("restricts students to their own application", () => {
+    expect(applicationResumeFilter(13, 8, false)).toEqual({ id: 13, studentId: 8 });
+  });
 
-console.log("Application resume ownership checks passed.");
+  it("allows administrators to review resumes across students", () => {
+    expect(applicationResumeFilter(13, 8, true)).toEqual({ id: 13 });
+  });
+});
