@@ -1,6 +1,5 @@
 note.txt
 prisma/migrations
-
 ## Default ignored items for next.js apps
 # dependencies
 /node_modules
@@ -14,6 +13,7 @@ prisma/migrations
 
 # testing
 /coverage
+/.pytest_cache/
 
 # next.js
 /.next/
