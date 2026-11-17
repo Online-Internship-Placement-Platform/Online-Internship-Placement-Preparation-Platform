@@ -10,11 +10,12 @@ const actions = vi.hoisted(() => ({
 vi.mock("@/components/app-shell", () => ({ AppShell: ({ children }: { children: React.ReactNode }) => <main>{children}</main> }));
 vi.mock("@/app/student/assessments/actions", () => actions);
 
+import type { AvailablePlacementTest } from "@/app/student/assessments/actions";
 import AssessmentsView from "@/components/assessments-view";
 
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
-const practiceTest = {
+const practiceTest: AvailablePlacementTest = {
   id: 21, title: "Web fundamentals", description: "HTML and CSS", domain: "WEB_DEVELOPMENT" as const,
   difficulty: "EASY" as const, isDefault: false,
   questions: [{ id: 1, prompt: "HTML?", options: ["Markup", "Style", "Script", "Query"] }],

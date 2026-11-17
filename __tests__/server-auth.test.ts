@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { createHmac } from "node:crypto";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   token: undefined as string | undefined,
@@ -20,11 +20,15 @@ function signedLegacy(role: string, email: string, expires: number, secret = val
   return `${role}.${email}.${expires}.${signature}`;
 }
 
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
   delete process.env.SESSION_SECRET;
   process.env.AUTH_SESSION_SECRET = validSecret;
-  process.env.NODE_ENV = "test";
+  vi.stubEnv("NODE_ENV", "test");
   mocks.token = undefined;
   mocks.set.mockReset();
   mocks.delete.mockReset();
@@ -56,7 +60,7 @@ describe("role session creation and configuration", () => {
     process.env.AUTH_SESSION_SECRET = "short";
     await expect(createRoleSession("student", "student@example.test")).rejects.toThrow("AUTH_SESSION_SECRET must contain at least 32 characters.");
     process.env.AUTH_SESSION_SECRET = validSecret;
-    process.env.NODE_ENV = "production";
+    vi.stubEnv("NODE_ENV", "production");
     await createRoleSession("admin", "admin@example.test");
     expect(mocks.set).toHaveBeenCalledWith("inplace-server-session", expect.stringMatching(/^admin\.admin@example\.test\.\d+\./), expect.objectContaining({
       httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 8,

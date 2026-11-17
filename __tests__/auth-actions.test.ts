@@ -25,7 +25,10 @@ describe("legacy demo sign-in actions", () => {
     expect(await signIn("  ", "password")).toEqual({ success: false, error: "Enter your email and password to continue." });
     expect(await signIn("student@gmail.com", "")).toEqual({ success: false, error: "Enter your email and password to continue." });
     mocks.isServerAuthConfigured.mockReturnValueOnce(false);
-    expect((await signIn("student@gmail.com", "student")).error).toContain("Server authentication is not configured.");
+    const configurationResult = await signIn("student@gmail.com", "student");
+    expect(configurationResult.success).toBe(false);
+    if (configurationResult.success) throw new Error("Expected sign-in to fail when server authentication is not configured.");
+    expect(configurationResult.error).toContain("Server authentication is not configured.");
     mocks.getDemoAccount.mockReturnValueOnce(undefined);
     expect(await signIn("student@gmail.com", "wrong")).toEqual({ success: false, error: "The email or password is incorrect." });
     expect(mocks.createRoleSession).not.toHaveBeenCalled();
