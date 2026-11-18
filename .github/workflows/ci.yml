@@ -38,5 +38,11 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Run frontend coverage
+        run: npm run test:coverage:frontend
+
+      - name: Run backend coverage
+        run: npm run test:coverage:backend
+
       - name: Build application
         run: npm run build
